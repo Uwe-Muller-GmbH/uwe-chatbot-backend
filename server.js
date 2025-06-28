@@ -1,3 +1,7 @@
+git add server.js
+git commit -m "Begrüßungstext angepasst"
+git push
+
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
