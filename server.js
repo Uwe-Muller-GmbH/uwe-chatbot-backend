@@ -58,7 +58,7 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
           },
           {
             role: 'assistant',
-            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?'
+            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen? aber nur heute'
           },
           {
             role: 'user',
