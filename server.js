@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -107,6 +109,17 @@ Kontakt:
       details: error.response?.data || error.message
     });
   }
+});
+// FAQ-API: Daten abrufen
+app.get('/api/faq', (req, res) => {
+  const data = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
+  res.json(JSON.parse(data));
+});
+
+// FAQ-API: Daten speichern
+app.post('/api/faq', (req, res) => {
+  fs.writeFileSync(path.resolve('faq.json'), JSON.stringify(req.body, null, 2));
+  res.json({ success: true });
 });
 
 app.listen(3000, () => {
