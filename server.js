@@ -11,22 +11,23 @@ app.use(express.static('public'));
 
 app.use(cors({
   origin: 'https://www.profiausbau.com',
-  methods: ['POST'],
+  methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
+// API-Endpoint für den Chat
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
-  // 1️⃣ FAQ-Antwort prüfen
+  // 1️⃣ FAQ-Suche
   let faqData = [];
   try {
     const rawFaq = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
     faqData = JSON.parse(rawFaq);
   } catch (err) {
-    console.warn('⚠️ FAQ-Datei konnte nicht geladen werden:', err.message);
+    console.warn('⚠️ FAQ konnte nicht geladen werden:', err.message);
   }
 
   const match = faqData.find(f =>
@@ -34,11 +35,11 @@ app.post('/api/chat', async (req, res) => {
   );
 
   if (match) {
-    console.log('✅ Antwort aus FAQ:', match.antwort);
+    console.log('✅ FAQ-Antwort gefunden:', match.antwort);
     return res.json({ reply: match.antwort });
   }
 
-  // 2️⃣ Fallback: Anfrage an OpenAI
+  // 2️⃣ OpenAI-Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -48,30 +49,16 @@ app.post('/api/chat', async (req, res) => {
           {
             role: 'system',
             content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
+            
+Sprich professionell und freundlich. Sei klar, kurz und informativ. Nutze nur bekannte Inhalte.
 
-Sprich in einem professionellen, freundlichen Ton. Deine Antworten sollen informativ, klar und kurzgefasst sein.
-
-Verwende ausschließlich Informationen, die in der bereitgestellten Wissensdatenbank enthalten sind.
-
-Wenn eine Information nicht verfügbar ist, teile dies dem Nutzer höflich mit und empfehle, das Unternehmen direkt zu kontaktieren.
-
-Bevor du eine direkte Kontaktaufnahme empfiehlst, prüfe immer sorgfältig, ob du die Antwort aus dem vorhandenen Wissen ableiten kannst.
-
-Gib keine Informationen, die außerhalb der Wissensbasis liegen. Rate nicht, erfinde nichts.
-
----
-
-Unternehmen: Profiausbau Aachen GmbH  
-Branche: Renovierung und Innenausbau  
-Leistungen: Badrenovierung, Trockenbau, Fliesenarbeiten, Komplettlösungen aus einer Hand  
-Rolle des Assistenten: Beantwortung von Fragen, Bereitstellung von Informationen, Unterstützung bei Terminbuchungen  
-Kontakt:  
-📧 E-Mail: info@profiausbau.com  
-📞 Telefon: +49 173 592 37 48`
+Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
+📧 info@profiausbau.com
+📞 +49 173 592 37 48`
           },
           {
             role: 'assistant',
-            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wir sind spezialisiert auf Badrenovierung, Trockenbau, Fliesenarbeiten und Komplettlösungen aus einer Hand. Wie kann ich Ihnen helfen?'
+            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?'
           },
           {
             role: 'user',
@@ -89,39 +76,43 @@ Kontakt:
       }
     );
 
-    const botReply = response?.data?.choices?.[0]?.message?.content;
-    console.log('🤖 GPT-Antwort:', botReply);
-
+    const botReply = response.data.choices?.[0]?.message?.content;
     if (!botReply) {
-      return res.status(500).json({
-        error: '⚠️ Die OpenAI-Antwort war leer oder unvollständig.',
-        details: response.data
-      });
+      return res.status(500).json({ error: 'Antwort war leer.' });
     }
 
     res.json({ reply: botReply });
 
-  } catch (error) {
-    console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
+  } catch (err) {
+    console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message);
     res.status(500).json({
-      error: 'Fehler bei der Anfrage an OpenAI.',
-      details: error.response?.data || error.message
+      error: 'Fehler bei der Kommunikation mit OpenAI.',
+      details: err.response?.data || err.message
     });
   }
 });
 
-// FAQ-API: Daten abrufen
+// FAQ-Daten abrufen
 app.get('/api/faq', (req, res) => {
-  const data = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
-  res.json(JSON.parse(data));
+  try {
+    const data = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    res.status(500).json({ error: 'FAQ konnte nicht geladen werden' });
+  }
 });
 
-// FAQ-API: Daten speichern
+// FAQ-Daten speichern
 app.post('/api/faq', (req, res) => {
-  fs.writeFileSync(path.resolve('faq.json'), JSON.stringify(req.body, null, 2));
-  res.json({ success: true });
+  try {
+    fs.writeFileSync(path.resolve('faq.json'), JSON.stringify(req.body, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'FAQ konnte nicht gespeichert werden' });
+  }
 });
 
+// Server starten
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000');
 });
