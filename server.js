@@ -60,14 +60,26 @@ Kontakt:
       }
     );
 
-    res.json({ reply: response.data.choices[0].message.content });
-  } catch (error) {
-    console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
-    res.status(500).json({
-      error: 'Fehler bei der Anfrage an OpenAI.',
-      details: error.response?.data || error.message
+    try {
+  const botReply = response?.data?.choices?.[0]?.message?.content;
+
+  console.log('🔍 OpenAI Antwort:', response.data);
+
+  if (!botReply) {
+    return res.status(500).json({
+      error: '⚠️ Die OpenAI-Antwort war leer oder unvollständig.',
+      details: response.data
     });
   }
+
+  res.json({ reply: botReply });
+} catch (error) {
+  console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
+  res.status(500).json({
+    error: 'Fehler bei der Anfrage an OpenAI.',
+    details: error.response?.data || error.message
+  });
+}
 });
 
 app.listen(3000, () => {
