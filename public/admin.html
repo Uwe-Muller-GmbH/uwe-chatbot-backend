@@ -93,33 +93,45 @@
 
     loadFAQ();
   </script>
- <script>
-  const PASSWORD = '3092077236629566Ll'; // ✅ Hier dein Passwort setzen
+<script>
+  const PASSWORD = '3092077236629566Ll'; // Dein Wunschpasswort
 
   function checkPassword() {
     const input = document.getElementById('admin-password').value;
     if (input === PASSWORD) {
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('admin-panel').style.display = 'block';
+      localStorage.setItem('adminLoggedIn', 'true'); // Merke den Login
+      showAdminPanel();
     } else {
       document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
     }
   }
 
   function logout() {
+    localStorage.removeItem('adminLoggedIn');
     document.getElementById('admin-panel').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('admin-password').value = '';
     document.getElementById('error-msg').innerText = '';
   }
 
-  // Enter-Taste für Login
+  function showAdminPanel() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'block';
+    loadFAQ();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('adminLoggedIn') === 'true') {
+      showAdminPanel();
+    }
+
     const input = document.getElementById('admin-password');
-    input.addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') {
-        checkPassword();
-      }
-    });
+    if (input) {
+      input.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+          checkPassword();
+        }
+      });
+    }
   });
 </script>
