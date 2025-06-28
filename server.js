@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
