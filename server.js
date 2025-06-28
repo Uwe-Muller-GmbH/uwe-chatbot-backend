@@ -62,8 +62,8 @@ Kontakt:
 
     res.json({ reply: response.data.choices[0].message.content });
   } catch (error) {
-    console.error('Fehler bei OpenAI:', error.message);
-    res.status(500).json({ error: 'Fehler bei der Anfrage an OpenAI.' });
+    console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
+res.status(500).json({ error: 'Fehler bei der Anfrage an OpenAI.', details: error.response?.data || error.message });
   }
 });
 
