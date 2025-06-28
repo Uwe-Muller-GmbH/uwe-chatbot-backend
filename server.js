@@ -69,20 +69,15 @@ Kontakt:
 📧 E-Mail: info@profiausbau.com  
 📞 Telefon: +49 173 592 37 48`
           },
-messages: [
-  {
-    role: 'system',
-    content: `Dein Systemprompt...`
-  },
-  {
-    role: 'assistant',
-    content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wir sind spezialisiert auf Badrenovierung, Trockenbau, Fliesenarbeiten und Komplettlösungen aus einer Hand. Wie kann ich Ihnen helfen?'
-  },
-  {
-    role: 'user',
-    content: message
-  }
-],
+          {
+            role: 'assistant',
+            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wir sind spezialisiert auf Badrenovierung, Trockenbau, Fliesenarbeiten und Komplettlösungen aus einer Hand. Wie kann ich Ihnen helfen?'
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
         temperature: 0.7,
         max_tokens: 800
       },
@@ -114,6 +109,7 @@ messages: [
     });
   }
 });
+
 // FAQ-API: Daten abrufen
 app.get('/api/faq', (req, res) => {
   const data = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
