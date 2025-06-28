@@ -9,6 +9,7 @@ import path from 'path';
 
 dotenv.config();
 const app = express();
+app.use(express.static('public'));
 
 app.use(express.static('public'));
 
