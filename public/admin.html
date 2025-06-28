@@ -83,5 +83,19 @@
 
     loadFAQ();
   </script>
+  <script>
+  const PASSWORD = 'meinGeheimesPasswort'; // ✅ Hier dein Wunsch-Passwort setzen
+
+  function checkPassword() {
+    const input = document.getElementById('admin-password').value;
+    if (input === PASSWORD) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'block';
+    } else {
+      document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
+    }
+  }
+</script>
+
 </body>
 </html>
