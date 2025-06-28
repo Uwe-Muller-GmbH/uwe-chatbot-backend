@@ -35,6 +35,17 @@
   </style>
 </head>
 <body>
+  <div id="login-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;">
+  <h2>🔐 Admin Login</h2>
+  <input type="password" id="admin-password" placeholder="Passwort eingeben..." style="padding: 10px; margin: 10px; font-size: 16px;">
+  <button onclick="checkPassword()" style="padding: 10px 20px; font-size: 16px;">Einloggen</button>
+  <p id="error-msg" style="color: red;"></p>
+</div>
+
+<div id="admin-panel" style="display: none;">
+  <!-- Dein bestehender Admin-Editor-Code kommt hier rein -->
+</div>
+
   <h1>📋 FAQ Editor – Profiausbau</h1>
   <p>Hier kannst du die Fragen und Antworten bearbeiten, die dein Chatbot verwendet.</p>
 
