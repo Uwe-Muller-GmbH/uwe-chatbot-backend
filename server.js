@@ -32,12 +32,12 @@ Gib keine Informationen, die außerhalb der Wissensbasis liegen. Rate nicht, erf
 
 ---
 
-Unternehmen: Profiausbau Aachen GmbH
-Branche: Renovierung und Innenausbau
-Leistungen: Badrenovierung, Trockenbau, Fliesenarbeiten, Komplettlösungen aus einer Hand
-Rolle des Assistenten: Beantwortung von Fragen, Bereitstellung von Informationen, Unterstützung bei Terminbuchungen
-Kontakt:
-📧 E-Mail: info@profiausbau.com
+Unternehmen: Profiausbau Aachen GmbH  
+Branche: Renovierung und Innenausbau  
+Leistungen: Badrenovierung, Trockenbau, Fliesenarbeiten, Komplettlösungen aus einer Hand  
+Rolle des Assistenten: Beantwortung von Fragen, Bereitstellung von Informationen, Unterstützung bei Terminbuchungen  
+Kontakt:  
+📧 E-Mail: info@profiausbau.com  
 📞 Telefon: +49 173 592 37 48`
           },
           {
@@ -63,7 +63,10 @@ Kontakt:
     res.json({ reply: response.data.choices[0].message.content });
   } catch (error) {
     console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
-res.status(500).json({ error: 'Fehler bei der Anfrage an OpenAI.', details: error.response?.data || error.message });
+    res.status(500).json({
+      error: 'Fehler bei der Anfrage an OpenAI.',
+      details: error.response?.data || error.message
+    });
   }
 });
 
