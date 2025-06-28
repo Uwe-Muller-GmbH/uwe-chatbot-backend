@@ -2,6 +2,8 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 const app = express();
@@ -11,11 +13,31 @@ app.use(cors({
   methods: ['POST'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
+  // 1️⃣ FAQ-Antwort prüfen
+  let faqData = [];
+  try {
+    const rawFaq = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
+    faqData = JSON.parse(rawFaq);
+  } catch (err) {
+    console.warn('⚠️ FAQ-Datei konnte nicht geladen werden:', err.message);
+  }
+
+  const match = faqData.find(f =>
+    message.toLowerCase().includes(f.frage.toLowerCase())
+  );
+
+  if (match) {
+    console.log('✅ Antwort aus FAQ:', match.antwort);
+    return res.json({ reply: match.antwort });
+  }
+
+  // 2️⃣ Fallback: Anfrage an OpenAI
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -67,7 +89,7 @@ Kontakt:
     );
 
     const botReply = response?.data?.choices?.[0]?.message?.content;
-    console.log('🔍 OpenAI Antwort:', response.data);
+    console.log('🤖 GPT-Antwort:', botReply);
 
     if (!botReply) {
       return res.status(500).json({
