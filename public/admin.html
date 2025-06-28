@@ -1,3 +1,4 @@
+<button onclick="logout()" style="float: right; margin-bottom: 20px; background: #ccc; color: black;">🔒 Logout</button>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -92,20 +93,33 @@
 
     loadFAQ();
   </script>
-  <script>
-  const PASSWORD = '3092077236629566Ll'; // ✅ Hier dein Wunsch-Passwort setzen
+ <script>
+  const PASSWORD = '3092077236629566Ll'; // ✅ Hier dein Passwort setzen
 
   function checkPassword() {
-  const input = document.getElementById('admin-password').value;
-  if (input === PASSWORD) {
-    document.getElementById('login-screen').style.display = 'none';
-    const panel = document.getElementById('admin-panel');
-    panel.classList.add('visible');
-  } else {
-    document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
+    const input = document.getElementById('admin-password').value;
+    if (input === PASSWORD) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'block';
+    } else {
+      document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
+    }
   }
-}
-</script>
 
-</body>
-</html>
+  function logout() {
+    document.getElementById('admin-panel').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('admin-password').value = '';
+    document.getElementById('error-msg').innerText = '';
+  }
+
+  // Enter-Taste für Login
+  document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('admin-password');
+    input.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') {
+        checkPassword();
+      }
+    });
+  });
+</script>
