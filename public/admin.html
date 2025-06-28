@@ -1,8 +1,7 @@
-<button onclick="logout()" style="float: right; margin-bottom: 20px; background: #ccc; color: black;">🔒 Logout</button>
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>FAQ Editor – Profiausbau</title>
   <style>
     body {
@@ -33,43 +32,69 @@
     button:hover {
       background: #005f99;
     }
-    #admin-panel {
-  display: none;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-#admin-panel.visible {
-  display: block;
-  opacity: 1;
-}
+    #logout-button {
+      float: right;
+      background: #ccc;
+      color: black;
+    }
   </style>
 </head>
 <body>
+
+  <!-- 🔐 Login Screen -->
   <div id="login-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;">
-  <h2>🔐 Admin Login</h2>
-  <input type="password" id="admin-password" placeholder="Passwort eingeben..." style="padding: 10px; margin: 10px; font-size: 16px;">
-  <button onclick="checkPassword()" style="padding: 10px 20px; font-size: 16px;">Einloggen</button>
-  <p id="error-msg" style="color: red;"></p>
-</div>
+    <h2>🔐 Admin Login</h2>
+    <input type="password" id="admin-password" placeholder="Passwort eingeben..." style="padding: 10px; margin: 10px; font-size: 16px;">
+    <button onclick="checkPassword()" style="padding: 10px 20px; font-size: 16px;">Einloggen</button>
+    <p id="error-msg" style="color: red;"></p>
+  </div>
 
-<div id="admin-panel" style="display: none;">
-  <h1>📋 FAQ Editor – Profiausbau</h1>
-  <p>Hier kannst du die Fragen und Antworten bearbeiten, die dein Chatbot verwendet.</p>
-
-  <textarea id="faq-content"></textarea>
-  <br>
-  <button onclick="saveFAQ()">💾 Speichern</button>
-
-  <p id="status" style="color: green;"></p>
-</div>
-
-
+  <!-- ✅ Admin Panel -->
+  <div id="admin-panel" style="display: none;">
+    <button id="logout-button" onclick="logout()">🔒 Logout</button>
+    <h1>📋 FAQ Editor – Profiausbau</h1>
+    <p>Hier kannst du die Fragen und Antworten bearbeiten, die dein Chatbot verwendet.</p>
+    <textarea id="faq-content"></textarea>
+    <br>
+    <button onclick="saveFAQ()">💾 Speichern</button>
+    <p id="status" style="color: green;"></p>
+  </div>
 
   <script>
+    const PASSWORD = '3092077236629566Ll'; // dein Passwort
+
+    function checkPassword() {
+      const input = document.getElementById('admin-password').value;
+      if (input === PASSWORD) {
+        localStorage.setItem('adminLoggedIn', 'true');
+        showAdminPanel();
+      } else {
+        document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('adminLoggedIn');
+      document.getElementById('admin-panel').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('admin-password').value = '';
+      document.getElementById('error-msg').innerText = '';
+    }
+
+    function showAdminPanel() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'block';
+      loadFAQ();
+    }
+
     async function loadFAQ() {
-      const res = await fetch('/api/faq');
-      const json = await res.json();
-      document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
+      try {
+        const res = await fetch('/api/faq');
+        const json = await res.json();
+        document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
+      } catch (e) {
+        document.getElementById('faq-content').value = '[]';
+      }
     }
 
     async function saveFAQ() {
@@ -91,47 +116,19 @@
       }
     }
 
-    loadFAQ();
-  </script>
-<script>
-  const PASSWORD = '3092077236629566Ll'; // Dein Wunschpasswort
+    document.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem('adminLoggedIn') === 'true') {
+        showAdminPanel();
+      }
 
-  function checkPassword() {
-    const input = document.getElementById('admin-password').value;
-    if (input === PASSWORD) {
-      localStorage.setItem('adminLoggedIn', 'true'); // Merke den Login
-      showAdminPanel();
-    } else {
-      document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
-    }
-  }
-
-  function logout() {
-    localStorage.removeItem('adminLoggedIn');
-    document.getElementById('admin-panel').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('admin-password').value = '';
-    document.getElementById('error-msg').innerText = '';
-  }
-
-  function showAdminPanel() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('admin-panel').style.display = 'block';
-    loadFAQ();
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('adminLoggedIn') === 'true') {
-      showAdminPanel();
-    }
-
-    const input = document.getElementById('admin-password');
-    if (input) {
+      const input = document.getElementById('admin-password');
       input.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
           checkPassword();
         }
       });
-    }
-  });
-</script>
+    });
+  </script>
+</body>
+</html>
+
