@@ -1,7 +1,3 @@
-git add server.js
-git commit -m "Begrüßungstext angepasst"
-git push
-
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -76,7 +72,7 @@ Kontakt:
           {
   role: 'assistant',
   content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wir sind spezialisiert auf Badrenovierung, Trockenbau, Fliesenarbeiten und Komplettlösungen aus einer Hand. Wie kann ich Ihnen helfen?'
-},
+}
           {
             role: 'user',
             content: message
