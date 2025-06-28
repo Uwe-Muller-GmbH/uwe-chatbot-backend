@@ -5,11 +5,17 @@ import cors from 'cors';
 
 dotenv.config();
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: 'https://www.profiausbau.com',
+  methods: ['POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
+
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -60,26 +66,25 @@ Kontakt:
       }
     );
 
-    try {
-  const botReply = response?.data?.choices?.[0]?.message?.content;
+    const botReply = response?.data?.choices?.[0]?.message?.content;
+    console.log('🔍 OpenAI Antwort:', response.data);
 
-  console.log('🔍 OpenAI Antwort:', response.data);
+    if (!botReply) {
+      return res.status(500).json({
+        error: '⚠️ Die OpenAI-Antwort war leer oder unvollständig.',
+        details: response.data
+      });
+    }
 
-  if (!botReply) {
-    return res.status(500).json({
-      error: '⚠️ Die OpenAI-Antwort war leer oder unvollständig.',
-      details: response.data
+    res.json({ reply: botReply });
+
+  } catch (error) {
+    console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
+    res.status(500).json({
+      error: 'Fehler bei der Anfrage an OpenAI.',
+      details: error.response?.data || error.message
     });
   }
-
-  res.json({ reply: botReply });
-} catch (error) {
-  console.error('Fehler bei Anfrage an OpenAI:', error.response?.data || error.message);
-  res.status(500).json({
-    error: 'Fehler bei der Anfrage an OpenAI.',
-    details: error.response?.data || error.message
-  });
-}
 });
 
 app.listen(3000, () => {
