@@ -24,8 +24,7 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 })
-
-// 📬 Chat-API mit verbessertem Fuse.js Matching
+// 📬 Chat-API mit verbessertem Fuse.js Matching & Logging
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
@@ -39,15 +38,25 @@ app.post('/api/chat', async (req, res) => {
 
   const fuse = new Fuse(faqData, {
     keys: ['frage'],
-    threshold: 0.5,           // Mehr Toleranz
-    distance: 100,            // Auch entfernte Matches
-    minMatchCharLength: 2     // Nicht auf zu kurze Wörter reagieren
+    threshold: 0.5,
+    distance: 100,
+    minMatchCharLength: 2
   });
 
   const result = fuse.search(message);
 
   if (result.length) {
     const antwort = result[0].item.antwort;
+
+    try {
+      await pool.query(
+        'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
+        [message, antwort, 'faq']
+      );
+    } catch (err) {
+      console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message);
+    }
+
     console.log('✅ FAQ-Treffer:', result[0].item.frage);
     return res.json({ reply: antwort });
   }
@@ -85,13 +94,23 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
-          'OpenAI-Organization': process.env.OPENAI_ORG_ID // falls benötigt
+          'OpenAI-Organization': process.env.OPENAI_ORG_ID
         }
       }
     );
 
     const botReply = response.data.choices?.[0]?.message?.content;
+
     if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
+
+    try {
+      await pool.query(
+        'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
+        [message, botReply, 'gpt']
+      );
+    } catch (err) {
+      console.warn('⚠️ Fehler beim Speichern des Logs (GPT):', err.message);
+    }
 
     res.json({ reply: botReply });
 
@@ -100,6 +119,7 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
     res.status(500).json({ error: 'Fehler bei OpenAI' });
   }
 });
+
 
 // 📤 GET: FAQ abrufen
 app.get('/api/faq', async (req, res) => {
