@@ -1,23 +1,27 @@
-import { Pool } from 'pg';
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import { Pool } from 'pg';
 
 dotenv.config();
 const app = express();
 app.use(express.static('public'));
+
 app.use(cors({
   origin: 'https://www.profiausbau.com',
   methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
 // 📦 PostgreSQL-Verbindung mit Pool (Supabase)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Supabase verlangt SSL
+  ssl: {
+    rejectUnauthorized: false // Wichtig für Supabase!
+  }
 });
 
 // 📬 Chat-API
@@ -41,7 +45,7 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply: match.antwort });
   }
 
-  // Fallback: GPT
+  // 🧠 Fallback: GPT
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -50,7 +54,17 @@ app.post('/api/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH …`
+            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
+
+Sprich professionell und freundlich. Sei klar, kurz und informativ. Nutze nur bekannte Inhalte.
+
+Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
+📧 info@profiausbau.com
+📞 +49 173 592 37 48`
+          },
+          {
+            role: 'assistant',
+            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?'
           },
           {
             role: 'user',
@@ -85,6 +99,7 @@ app.get('/api/faq', async (req, res) => {
     const result = await pool.query('SELECT * FROM faq');
     res.json(result.rows);
   } catch (err) {
+    console.error('❌ Fehler beim Laden der FAQ:', err.message);
     res.status(500).json({ error: 'FAQ konnte nicht aus DB geladen werden.' });
   }
 });
@@ -122,4 +137,3 @@ app.post('/api/faq', async (req, res) => {
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000');
 });
-
