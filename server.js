@@ -2,11 +2,18 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import pkg from 'pg';
-const { Pool } = pkg;
+import pg from 'pg';
 
 dotenv.config();
 const app = express();
+const { Pool } = pg;
+
+// PostgreSQL Verbindung über Supabase Pooler
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
 app.use(express.static('public'));
 
 app.use(cors({
@@ -17,24 +24,14 @@ app.use(cors({
 
 app.use(express.json());
 
-// 📦 PostgreSQL Verbindung (Supabase)
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  port: 5432,
-  ssl: { rejectUnauthorized: false }
-});
-
 // 📬 Chat-API
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
-  // 1️⃣ FAQ aus Datenbank prüfen
+  // 1️⃣ FAQ aus PostgreSQL prüfen
   let faqData = [];
   try {
-    const result = await pool.query('SELECT frage, antwort FROM faq');
+    const result = await db.query('SELECT frage, antwort FROM faq');
     faqData = result.rows;
   } catch (err) {
     console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
@@ -58,13 +55,8 @@ app.post('/api/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
-
-Sprich professionell und freundlich. Sei klar, kurz und informativ. Nutze nur bekannte Inhalte.
-
-Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
-📧 info@profiausbau.com
-📞 +49 173 592 37 48`
+            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH. 
+Sprich professionell, kurz und informativ. Bei Unklarheiten bitte höflich auf direkte Kontaktaufnahme verweisen.`
           },
           {
             role: 'assistant',
@@ -99,7 +91,7 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
 // 📤 FAQ abrufen (GET)
 app.get('/api/faq', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM faq');
+    const result = await db.query('SELECT * FROM faq');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'FAQ konnte nicht aus DB geladen werden.' });
@@ -114,15 +106,20 @@ app.post('/api/faq', async (req, res) => {
   }
 
   try {
-    await pool.query('DELETE FROM faq');
+    await db.query('BEGIN');
+    await db.query('DELETE FROM faq');
+
     for (const item of faqs) {
-      await pool.query(
-        'INSERT INTO faq (id, frage, antwort) VALUES (uuid_generate_v4(), $1, $2)',
+      await db.query(
+        'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
         [item.frage, item.antwort]
       );
     }
+
+    await db.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
+    await db.query('ROLLBACK');
     console.error('❌ Fehler beim Speichern der FAQ:', err.message);
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' });
   }
