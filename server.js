@@ -1,37 +1,32 @@
+import { Pool } from 'pg';
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import pg from 'pg';
 
 dotenv.config();
 const app = express();
-const { Pool } = pg;
-
-// PostgreSQL Verbindung über Supabase Pooler
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
 app.use(express.static('public'));
-
 app.use(cors({
   origin: 'https://www.profiausbau.com',
   methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 app.use(express.json());
+
+// 📦 PostgreSQL-Verbindung mit Pool (Supabase)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false } // Supabase verlangt SSL
+});
 
 // 📬 Chat-API
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
-  // 1️⃣ FAQ aus PostgreSQL prüfen
   let faqData = [];
   try {
-    const result = await db.query('SELECT frage, antwort FROM faq');
+    const result = await pool.query('SELECT frage, antwort FROM faq');
     faqData = result.rows;
   } catch (err) {
     console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
@@ -46,7 +41,7 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply: match.antwort });
   }
 
-  // 2️⃣ Fallback: OpenAI
+  // Fallback: GPT
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -55,12 +50,7 @@ app.post('/api/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH. 
-Sprich professionell, kurz und informativ. Bei Unklarheiten bitte höflich auf direkte Kontaktaufnahme verweisen.`
-          },
-          {
-            role: 'assistant',
-            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?'
+            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH …`
           },
           {
             role: 'user',
@@ -82,16 +72,17 @@ Sprich professionell, kurz und informativ. Bei Unklarheiten bitte höflich auf d
     if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
 
     res.json({ reply: botReply });
+
   } catch (err) {
     console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Fehler bei der Kommunikation mit OpenAI.' });
+    res.status(500).json({ error: 'Fehler bei OpenAI' });
   }
 });
 
 // 📤 FAQ abrufen (GET)
 app.get('/api/faq', async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM faq');
+    const result = await pool.query('SELECT * FROM faq');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'FAQ konnte nicht aus DB geladen werden.' });
@@ -106,21 +97,23 @@ app.post('/api/faq', async (req, res) => {
   }
 
   try {
-    await db.query('BEGIN');
-    await db.query('DELETE FROM faq');
+    const client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('DELETE FROM faq');
 
     for (const item of faqs) {
-      await db.query(
+      await client.query(
         'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
         [item.frage, item.antwort]
       );
     }
 
-    await db.query('COMMIT');
+    await client.query('COMMIT');
+    client.release();
+
     res.json({ success: true });
   } catch (err) {
-    await db.query('ROLLBACK');
-    console.error('❌ Fehler beim Speichern der FAQ:', err.message);
+    console.error('❌ Fehler beim Speichern:', err.message);
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' });
   }
 });
@@ -129,3 +122,4 @@ app.post('/api/faq', async (req, res) => {
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000');
 });
+
