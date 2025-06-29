@@ -1,11 +1,11 @@
 import express from 'express'
 import axios from 'axios'
-import dotenv from 'dotenv'
+import 'dotenv/config'
 import cors from 'cors'
 import pg from 'pg'
 import Fuse from 'fuse.js'
+import { stringify } from 'csv-stringify/sync'
 
-dotenv.config()
 const app = express()
 app.use(express.static('public'))
 
@@ -18,7 +18,6 @@ app.use(cors({
 app.use(express.json())
 
 const { Pool } = pg
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -26,6 +25,7 @@ const pool = new Pool({
   }
 })
 
+// 📬 Chat-API mit Fuse.js Fuzzy-Matching & Logging
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
 
@@ -46,7 +46,6 @@ app.post('/api/chat', async (req, res) => {
   if (result.length && result[0].score < 0.4) {
     const antwort = result[0].item.antwort
 
-    // ✅ Logging in chat_log (FAQ-Antwort)
     try {
       await pool.query(
         'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
@@ -56,11 +55,9 @@ app.post('/api/chat', async (req, res) => {
       console.warn('⚠️ Konnte Chat-Log (FAQ) nicht speichern:', logErr.message)
     }
 
-    console.log('✅ Antwort aus FAQ:', result[0].item.frage)
     return res.json({ reply: antwort })
   }
 
-  // 🔁 GPT-Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -101,7 +98,6 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
     const botReply = response.data.choices?.[0]?.message?.content
     if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' })
 
-    // ✅ Logging in chat_log (GPT-Antwort)
     try {
       await pool.query(
         'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
@@ -112,13 +108,11 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
     }
 
     res.json({ reply: botReply })
-
   } catch (err) {
     console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message)
     res.status(500).json({ error: 'Fehler bei OpenAI' })
   }
 })
-
 
 // 📤 GET: FAQ abrufen
 app.get('/api/faq', async (req, res) => {
@@ -157,6 +151,30 @@ app.post('/api/faq', async (req, res) => {
   } catch (err) {
     console.error('❌ Fehler beim Speichern:', err.message)
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' })
+  }
+})
+
+// 📥 GET: Chat-Log als CSV exportieren
+app.get('/api/log/export', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT frage, antwort, quelle, zeit FROM chat_log ORDER BY zeit DESC')
+    const csv = stringify(result.rows, {
+      header: true,
+      columns: {
+        frage: 'Frage',
+        antwort: 'Antwort',
+        quelle: 'Quelle',
+        zeit: 'Zeit'
+      },
+      delimiter: ';'
+    })
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', 'attachment; filename="chat_log_export.csv"')
+    res.send(csv)
+  } catch (err) {
+    console.error('❌ Fehler beim CSV-Export:', err.message)
+    res.status(500).json({ error: 'Export fehlgeschlagen' })
   }
 })
 
