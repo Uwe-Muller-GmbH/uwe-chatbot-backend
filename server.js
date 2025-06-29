@@ -24,6 +24,7 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 })
+
 // 📬 Chat-API mit verbessertem Fuse.js Matching & Logging
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
@@ -45,7 +46,7 @@ app.post('/api/chat', async (req, res) => {
 
   const result = fuse.search(message);
 
-  if (result.length) {
+  if (result.length && result[0].score < 0.4) {
     const antwort = result[0].item.antwort;
 
     try {
