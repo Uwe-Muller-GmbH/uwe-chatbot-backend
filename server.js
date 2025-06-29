@@ -4,7 +4,6 @@ import 'dotenv/config'
 import cors from 'cors'
 import pg from 'pg'
 import Fuse from 'fuse.js'
-import { stringify } from 'csv-stringify/sync'
 
 const app = express()
 app.use(express.static('public'))
@@ -46,7 +45,7 @@ app.post('/api/chat', async (req, res) => {
 
   const result = fuse.search(message);
 
-  if (result.length && result[0].score < 0.4) {
+  if (result.length) {
     const antwort = result[0].item.antwort;
 
     try {
@@ -159,30 +158,6 @@ app.post('/api/faq', async (req, res) => {
   } catch (err) {
     console.error('❌ Fehler beim Speichern:', err.message)
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' })
-  }
-})
-
-// 📥 GET: Chat-Log als CSV exportieren
-app.get('/api/log/export', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT frage, antwort, quelle, zeit FROM chat_log ORDER BY zeit DESC')
-    const csv = stringify(result.rows, {
-      header: true,
-      columns: {
-        frage: 'Frage',
-        antwort: 'Antwort',
-        quelle: 'Quelle',
-        zeit: 'Zeit'
-      },
-      delimiter: ';'
-    })
-
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', 'attachment; filename="chat_log_export.csv"')
-    res.send(csv)
-  } catch (err) {
-    console.error('❌ Fehler beim CSV-Export:', err.message)
-    res.status(500).json({ error: 'Export fehlgeschlagen' })
   }
 })
 
