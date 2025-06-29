@@ -26,30 +26,34 @@ const pool = new Pool({
   }
 })
 
-// 📬 Chat-API mit Fuse.js Fuzzy-Matching
+// 📬 Chat-API mit verbessertem Fuse.js Matching
 app.post('/api/chat', async (req, res) => {
-  const { message } = req.body
+  const { message } = req.body;
 
-  let faqData = []
+  let faqData = [];
   try {
-    const result = await pool.query('SELECT frage, antwort FROM faq')
-    faqData = result.rows
+    const result = await pool.query('SELECT frage, antwort FROM faq');
+    faqData = result.rows;
   } catch (err) {
-    console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message)
+    console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
   }
 
   const fuse = new Fuse(faqData, {
     keys: ['frage'],
-    threshold: 0.3
-  })
+    threshold: 0.5,           // Mehr Toleranz
+    distance: 100,            // Auch entfernte Matches
+    minMatchCharLength: 2     // Nicht auf zu kurze Wörter reagieren
+  });
 
-  const result = fuse.search(message)
-  if (result.length && result[0].score < 0.4) {
-    const antwort = result[0].item.antwort
-    console.log('✅ Antwort aus FAQ:', result[0].item.frage)
-    return res.json({ reply: antwort })
+  const result = fuse.search(message);
+
+  if (result.length) {
+    const antwort = result[0].item.antwort;
+    console.log('✅ FAQ-Treffer:', result[0].item.frage);
+    return res.json({ reply: antwort });
   }
 
+  // GPT-Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -81,21 +85,23 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
       {
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'OpenAI-Organization': process.env.OPENAI_ORG_ID // falls benötigt
         }
       }
-    )
+    );
 
-    const botReply = response.data.choices?.[0]?.message?.content
-    if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' })
+    const botReply = response.data.choices?.[0]?.message?.content;
+    if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
 
-    res.json({ reply: botReply })
+    res.json({ reply: botReply });
 
   } catch (err) {
-    console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message)
-    res.status(500).json({ error: 'Fehler bei OpenAI' })
+    console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Fehler bei OpenAI' });
   }
-})
+});
+
 
 // 📤 GET: FAQ abrufen
 app.get('/api/faq', async (req, res) => {
