@@ -2,44 +2,38 @@ import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import mysql from 'mysql2/promise';
+import pkg from 'pg';
 
+const { Pool } = pkg;
 dotenv.config();
 const app = express();
-app.use(express.static('public'));
 
+app.use(express.static('public'));
 app.use(cors({
   origin: 'https://www.profiausbau.com',
   methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 app.use(express.json());
 
-// 📦 MySQL Verbindung aufbauen
-const dbConfig = {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME
-};
-
-// 📍 Testverbindung (einmal beim Start)
-mysql.createConnection(dbConfig)
-  .then(() => console.log('✅ MySQL-Datenbank verbunden'))
-  .catch(err => console.error('❌ MySQL-Verbindung fehlgeschlagen:', err.message));
+// 📦 PostgreSQL Verbindung mit Pool
+const pool = new Pool({
+  host: process.env.PGHOST,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE,
+  port: process.env.PGPORT || 5432,
+  ssl: { rejectUnauthorized: false } // für Supabase nötig
+});
 
 // 📬 Chat-API
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
-  // 1️⃣ FAQ aus Datenbank prüfen
+  // 1️⃣ FAQ aus DB prüfen
   let faqData = [];
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT frage, antwort FROM faq');
-    await connection.end();
-
+    const { rows } = await pool.query('SELECT frage, antwort FROM faq');
     faqData = rows;
   } catch (err) {
     console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
@@ -54,7 +48,7 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply: match.antwort });
   }
 
-  // 2️⃣ Fallback: OpenAI
+  // 2️⃣ OpenAI Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -64,7 +58,7 @@ app.post('/api/chat', async (req, res) => {
           {
             role: 'system',
             content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
-            
+
 Sprich professionell und freundlich. Sei klar, kurz und informativ. Nutze nur bekannte Inhalte.
 
 Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
@@ -101,20 +95,17 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
   }
 });
 
-// 📤 FAQ abrufen (GET)
+// 📤 FAQ abrufen
 app.get('/api/faq', async (req, res) => {
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT * FROM faq');
-    await connection.end();
-
+    const { rows } = await pool.query('SELECT * FROM faq');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'FAQ konnte nicht aus DB geladen werden.' });
   }
 });
 
-// 💾 FAQ speichern (POST)
+// 💾 FAQ speichern
 app.post('/api/faq', async (req, res) => {
   const faqs = req.body;
   if (!Array.isArray(faqs)) {
@@ -122,15 +113,10 @@ app.post('/api/faq', async (req, res) => {
   }
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    await connection.execute('DELETE FROM faq');
+    await pool.query('DELETE FROM faq');
     for (const item of faqs) {
-      await connection.execute(
-        'INSERT INTO faq (frage, antwort) VALUES (?, ?)',
-        [item.frage, item.antwort]
-      );
+      await pool.query('INSERT INTO faq (frage, antwort) VALUES ($1, $2)', [item.frage, item.antwort]);
     }
-    await connection.end();
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Fehler beim Speichern der FAQ:', err.message);
@@ -138,7 +124,8 @@ app.post('/api/faq', async (req, res) => {
   }
 });
 
-// 🔊 Server starten
+// Server starten
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000');
 });
+
