@@ -1,8 +1,10 @@
+
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { Pool } from 'pg';
+import Fuse from 'fuse.js';
 
 dotenv.config();
 const app = express();
@@ -24,7 +26,7 @@ const pool = new Pool({
   }
 });
 
-// 📬 Chat-API
+// 📬 Chat-API mit Fuzzy-Suche
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
@@ -36,16 +38,20 @@ app.post('/api/chat', async (req, res) => {
     console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
   }
 
-  const match = faqData.find(f =>
-    message.toLowerCase().includes(f.frage.toLowerCase())
-  );
+  // 🧠 Fuzzy-Suche mit Fuse.js
+  const fuse = new Fuse(faqData, {
+    keys: ['frage'],
+    threshold: 0.3,
+  });
 
-  if (match) {
-    console.log('✅ Antwort aus FAQ:', match.antwort);
-    return res.json({ reply: match.antwort });
+  const result = fuse.search(message);
+  if (result.length && result[0].score < 0.4) {
+    const antwort = result[0].item.antwort;
+    console.log('✅ Ähnliche FAQ gefunden:', result[0].item.frage);
+    return res.json({ reply: antwort });
   }
 
-  // 🧠 Fallback: GPT
+  // 🤖 Fallback: GPT
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -54,13 +60,13 @@ app.post('/api/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
+            content: \`Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
 
 Sprich professionell und freundlich. Sei klar, kurz und informativ. Nutze nur bekannte Inhalte.
 
 Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
 📧 info@profiausbau.com
-📞 +49 173 592 37 48`
+📞 +49 173 592 37 48\`
           },
           {
             role: 'assistant',
@@ -76,7 +82,7 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\`,
           'Content-Type': 'application/json'
         }
       }
