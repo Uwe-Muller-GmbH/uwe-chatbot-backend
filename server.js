@@ -3,38 +3,39 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import pkg from 'pg';
-
 const { Pool } = pkg;
+
 dotenv.config();
 const app = express();
-
 app.use(express.static('public'));
+
 app.use(cors({
   origin: 'https://www.profiausbau.com',
   methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
-// 📦 PostgreSQL Verbindung mit Pool
+// 📦 PostgreSQL Verbindung (Supabase)
 const pool = new Pool({
-  host: process.env.PGHOST,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-  port: process.env.PGPORT || 5432,
-  ssl: { rejectUnauthorized: false } // für Supabase nötig
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  port: 5432,
+  ssl: { rejectUnauthorized: false }
 });
 
 // 📬 Chat-API
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
-  // 1️⃣ FAQ aus DB prüfen
+  // 1️⃣ FAQ aus Datenbank prüfen
   let faqData = [];
   try {
-    const { rows } = await pool.query('SELECT frage, antwort FROM faq');
-    faqData = rows;
+    const result = await pool.query('SELECT frage, antwort FROM faq');
+    faqData = result.rows;
   } catch (err) {
     console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
   }
@@ -48,7 +49,7 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply: match.antwort });
   }
 
-  // 2️⃣ OpenAI Fallback
+  // 2️⃣ Fallback: OpenAI
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -95,17 +96,17 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
   }
 });
 
-// 📤 FAQ abrufen
+// 📤 FAQ abrufen (GET)
 app.get('/api/faq', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM faq');
-    res.json(rows);
+    const result = await pool.query('SELECT * FROM faq');
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'FAQ konnte nicht aus DB geladen werden.' });
   }
 });
 
-// 💾 FAQ speichern
+// 💾 FAQ speichern (POST)
 app.post('/api/faq', async (req, res) => {
   const faqs = req.body;
   if (!Array.isArray(faqs)) {
@@ -115,7 +116,10 @@ app.post('/api/faq', async (req, res) => {
   try {
     await pool.query('DELETE FROM faq');
     for (const item of faqs) {
-      await pool.query('INSERT INTO faq (frage, antwort) VALUES ($1, $2)', [item.frage, item.antwort]);
+      await pool.query(
+        'INSERT INTO faq (id, frage, antwort) VALUES (uuid_generate_v4(), $1, $2)',
+        [item.frage, item.antwort]
+      );
     }
     res.json({ success: true });
   } catch (err) {
@@ -124,8 +128,7 @@ app.post('/api/faq', async (req, res) => {
   }
 });
 
-// Server starten
+// 🔊 Server starten
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000');
 });
-
