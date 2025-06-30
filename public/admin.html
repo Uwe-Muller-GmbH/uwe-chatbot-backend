@@ -54,6 +54,9 @@
       margin-left: 10px;
       font-weight: bold;
     }
+    .score-box {
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -83,22 +86,19 @@
 
   <script>
     const PASSWORD = '3092077236629566Ll';
-// Automatisch einloggen, wenn Passwort im localStorage gespeichert ist
-const saved = localStorage.getItem('admin_pass');
-if (saved === PASSWORD) {
-  showAdminPanel();
-}
 
- function checkPassword() {
-  const input = document.getElementById('admin-password').value.trim();
-  if (input === PASSWORD) {
-    localStorage.setItem('admin_pass', PASSWORD);
-    showAdminPanel();
-  } else {
-    document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
-  }
-}
+    const saved = localStorage.getItem('admin_pass');
+    if (saved === PASSWORD) showAdminPanel();
 
+    function checkPassword() {
+      const input = document.getElementById('admin-password').value.trim();
+      if (input === PASSWORD) {
+        localStorage.setItem('admin_pass', PASSWORD);
+        showAdminPanel();
+      } else {
+        document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
+      }
+    }
 
     function showAdminPanel() {
       document.getElementById('login-screen').style.display = 'none';
@@ -108,16 +108,16 @@ if (saved === PASSWORD) {
       loadCandidates();
     }
 
-function logout() {
-  localStorage.removeItem('admin_pass'); // 🟢 Passwort entfernen beim Logout
-  document.getElementById('admin-panel').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('admin-password').value = '';
-  document.getElementById('faq-content').value = '';
-  document.getElementById('status').textContent = '';
-  document.getElementById('clear-cache-btn').style.display = 'none';
-  document.getElementById('cache-msg').textContent = '';
-}
+    function logout() {
+      localStorage.removeItem('admin_pass');
+      document.getElementById('admin-panel').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('admin-password').value = '';
+      document.getElementById('faq-content').value = '';
+      document.getElementById('status').textContent = '';
+      document.getElementById('clear-cache-btn').style.display = 'none';
+      document.getElementById('cache-msg').textContent = '';
+    }
 
     function handleEnter(e) {
       if (e.key === 'Enter') checkPassword();
@@ -128,7 +128,7 @@ function logout() {
         const res = await fetch('/api/faq');
         const json = await res.json();
         document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
-      } catch (err) {
+      } catch {
         document.getElementById('status').textContent = '❌ Fehler beim Laden der Daten!';
       }
     }
@@ -150,7 +150,7 @@ function logout() {
         document.getElementById('status').textContent = res.ok
           ? '✅ Gespeichert!'
           : '❌ Fehler beim Speichern!';
-      } catch (e) {
+      } catch {
         document.getElementById('status').textContent = '⚠️ Ungültiges JSON!';
       }
     }
@@ -187,6 +187,11 @@ function logout() {
               <button onclick="addFaq(this)">✅ Speichern</button>
               <span class="save-status"></span>
             </div>
+            <div class="score-box">
+              <input type="number" placeholder="Score" min="0" max="1" step="0.01" style="width:60px;">
+              <button onclick="saveScore(this)">💾 Score</button>
+              <span class="save-status"></span>
+            </div>
           `;
           container.appendChild(div);
         });
@@ -219,6 +224,40 @@ function logout() {
           status.textContent = '✅ Gespeichert';
           status.style.color = 'green';
           box.style.display = 'none';
+        } else {
+          status.textContent = '❌ Fehler';
+          status.style.color = 'red';
+        }
+      } catch {
+        status.textContent = '❌ Fehler beim Speichern';
+        status.style.color = 'red';
+      }
+    }
+
+    async function saveScore(button) {
+      const box = button.closest('.score-box');
+      const frageElem = box.parentElement.querySelector('.frage');
+      const frage = decodeURIComponent(frageElem.dataset.frage || '').trim();
+      const input = box.querySelector('input');
+      const score = parseFloat(input.value);
+      const status = box.querySelector('.save-status');
+
+      if (isNaN(score)) {
+        status.textContent = '⚠️ Zahl fehlt';
+        status.style.color = 'red';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/faq-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ frage, score })
+        });
+        const result = await res.json();
+        if (result.success) {
+          status.textContent = '✅ Score gespeichert';
+          status.style.color = 'green';
         } else {
           status.textContent = '❌ Fehler';
           status.style.color = 'red';
