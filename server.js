@@ -19,46 +19,66 @@ app.use(express.json())
 const { Pool } = pg
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 })
 
-// 📬 Chat-API mit verbessertem Fuse.js Matching & Logging
-app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
+// 🧠 Caching für FAQ & Fuse
+let cachedFaqData = []
+let lastFetch = 0
+let fuse = null
 
-  let faqData = [];
-  try {
-    const result = await pool.query('SELECT frage, antwort FROM faq');
-    faqData = result.rows;
-  } catch (err) {
-    console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message);
+async function loadFaqData() {
+  const now = Date.now()
+  if (cachedFaqData.length && now - lastFetch < 5 * 60 * 1000) {
+    return cachedFaqData
   }
 
-  const fuse = new Fuse(faqData, {
-    keys: ['frage'],
-    threshold: 0.5,
-    distance: 100,
-    minMatchCharLength: 2
-  });
+  try {
+    const result = await pool.query('SELECT frage, antwort FROM faq')
+    cachedFaqData = result.rows
+    lastFetch = now
+    fuse = new Fuse(cachedFaqData, {
+      keys: ['frage'],
+      threshold: 0.5,
+      distance: 100,
+      minMatchCharLength: 2
+    })
+  } catch (err) {
+    console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message)
+  }
 
-  const result = fuse.search(message);
+  return cachedFaqData
+}
+
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body
+
+  const faqData = await loadFaqData()
+  if (!fuse) {
+    fuse = new Fuse(faqData, {
+      keys: ['frage'],
+      threshold: 0.5,
+      distance: 100,
+      minMatchCharLength: 2
+    })
+  }
+
+  const result = fuse.search(message)
 
   if (result.length) {
-    const antwort = result[0].item.antwort;
+    const antwort = result[0].item.antwort
 
     try {
       await pool.query(
         'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
         [message, antwort, 'faq']
-      );
+      )
     } catch (err) {
-      console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message);
+      console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message)
     }
 
-    console.log('✅ FAQ-Treffer:', result[0].item.frage);
-    return res.json({ reply: antwort });
+    console.log('✅ FAQ-Treffer:', result[0].item.frage)
+    return res.json({ reply: antwort })
   }
 
   // GPT-Fallback
@@ -97,29 +117,26 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
           'OpenAI-Organization': process.env.OPENAI_ORG_ID
         }
       }
-    );
+    )
 
-    const botReply = response.data.choices?.[0]?.message?.content;
-
-    if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
+    const botReply = response.data.choices?.[0]?.message?.content
+    if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' })
 
     try {
       await pool.query(
         'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
         [message, botReply, 'gpt']
-      );
+      )
     } catch (err) {
-      console.warn('⚠️ Fehler beim Speichern des Logs (GPT):', err.message);
+      console.warn('⚠️ Fehler beim Speichern des Logs (GPT):', err.message)
     }
 
-    res.json({ reply: botReply });
-
+    res.json({ reply: botReply })
   } catch (err) {
-    console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Fehler bei OpenAI' });
+    console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message)
+    res.status(500).json({ error: 'Fehler bei OpenAI' })
   }
-});
-
+})
 
 // 📤 GET: FAQ abrufen
 app.get('/api/faq', async (req, res) => {
@@ -132,7 +149,7 @@ app.get('/api/faq', async (req, res) => {
   }
 })
 
-// 💾 POST: FAQ speichern
+// 💾 POST: FAQ speichern (Admin)
 app.post('/api/faq', async (req, res) => {
   const faqs = req.body
   if (!Array.isArray(faqs)) {
@@ -153,6 +170,11 @@ app.post('/api/faq', async (req, res) => {
 
     await client.query('COMMIT')
     client.release()
+
+    // 🔁 Cache invalidieren nach Änderung
+    cachedFaqData = []
+    lastFetch = 0
+    fuse = null
 
     res.json({ success: true })
   } catch (err) {
