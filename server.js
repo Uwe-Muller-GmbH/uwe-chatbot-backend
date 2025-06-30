@@ -22,7 +22,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 })
 
-// 🧠 Redis REST API via Upstash
+// Redis via Upstash
 const UPSTASH_URL = process.env.UPSTASH_REST_URL
 const UPSTASH_TOKEN = process.env.UPSTASH_REST_TOKEN
 
@@ -35,11 +35,8 @@ async function loadFaqData() {
         Authorization: `Bearer ${UPSTASH_TOKEN}`
       }
     })
-
     const cached = response.data?.result
-    if (cached) {
-      return JSON.parse(cached)
-    }
+    if (cached) return JSON.parse(cached)
   } catch (err) {
     console.warn('⚠️ Redis REST read failed:', err.message)
   }
@@ -66,8 +63,8 @@ async function loadFaqData() {
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
-
   const faqData = await loadFaqData()
+
   if (!fuse || !fuse._docs || fuse._docs.length !== faqData.length) {
     fuse = new Fuse(faqData, {
       keys: ['frage'],
@@ -78,10 +75,8 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const result = fuse.search(message)
-
   if (result.length) {
     const antwort = result[0].item.antwort
-
     try {
       await pool.query(
         'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
@@ -90,7 +85,6 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message)
     }
-
     console.log('✅ FAQ-Treffer:', result[0].item.frage)
     return res.json({ reply: antwort })
   }
@@ -111,14 +105,8 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
 📧 info@profiausbau.com
 📞 +49 173 592 37 48`
           },
-          {
-            role: 'assistant',
-            content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?'
-          },
-          {
-            role: 'user',
-            content: message
-          }
+          { role: 'assistant', content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?' },
+          { role: 'user', content: message }
         ],
         temperature: 0.7,
         max_tokens: 800
@@ -151,7 +139,6 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
   }
 })
 
-// 📤 GET: FAQ abrufen
 app.get('/api/faq', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM faq')
@@ -162,7 +149,6 @@ app.get('/api/faq', async (req, res) => {
   }
 })
 
-// 📊 FAQ-Kandidaten (Top 20 GPT-Fragen)
 app.get('/api/faq-candidates', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -180,7 +166,6 @@ app.get('/api/faq-candidates', async (req, res) => {
   }
 })
 
-// ➕ Einzelne FAQ speichern (aus Kandidaten) – MIT LOGGING
 app.post('/api/faq-add-single', async (req, res) => {
   const { frage, antwort } = req.body
 
@@ -202,9 +187,7 @@ app.post('/api/faq-add-single', async (req, res) => {
 
     try {
       await axios.get(`${UPSTASH_URL}/del/faq`, {
-        headers: {
-          Authorization: `Bearer ${UPSTASH_TOKEN}`
-        }
+        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
       })
       console.log('🧹 Redis-Cache gelöscht nach Eintrag.')
     } catch (err) {
@@ -218,7 +201,6 @@ app.post('/api/faq-add-single', async (req, res) => {
   }
 })
 
-// 💾 POST: FAQ speichern (Admin)
 app.post('/api/faq', async (req, res) => {
   const faqs = req.body
   if (!Array.isArray(faqs)) {
@@ -231,10 +213,23 @@ app.post('/api/faq', async (req, res) => {
     await client.query('DELETE FROM faq')
 
     for (const item of faqs) {
-      await client.query(
-        'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
-        [item.frage, item.antwort]
-      )
+      if (!item.frage || !item.antwort) {
+        console.warn('⚠️ Ungültiger FAQ-Eintrag übersprungen:', item)
+        continue
+      }
+
+      try {
+        await client.query(
+          'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
+          [item.frage, item.antwort]
+        )
+      } catch (err) {
+        if (err.code === '23505') {
+          console.warn('⚠️ Duplikat übersprungen:', item.frage)
+        } else {
+          throw err
+        }
+      }
     }
 
     await client.query('COMMIT')
@@ -242,9 +237,7 @@ app.post('/api/faq', async (req, res) => {
 
     try {
       await axios.get(`${UPSTASH_URL}/del/faq`, {
-        headers: {
-          Authorization: `Bearer ${UPSTASH_TOKEN}`
-        }
+        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
       })
     } catch (err) {
       console.warn('⚠️ Fehler beim Cache-Löschen (Redis):', err.message)
@@ -258,13 +251,10 @@ app.post('/api/faq', async (req, res) => {
   }
 })
 
-// 🧼 Admin-API: Redis-Cache manuell löschen
 app.delete('/api/cache', async (req, res) => {
   try {
     await axios.get(`${UPSTASH_URL}/del/faq`, {
-      headers: {
-        Authorization: `Bearer ${UPSTASH_TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
     })
     console.log('🧹 Redis-Cache gelöscht')
     return res.json({ success: true, message: 'Cache gelöscht' })
@@ -274,13 +264,10 @@ app.delete('/api/cache', async (req, res) => {
   }
 })
 
-// ✅ Redis Cache-Status prüfen
 app.get('/api/cache-status', async (req, res) => {
   try {
     const response = await axios.get(`${UPSTASH_URL}/get/faq`, {
-      headers: {
-        Authorization: `Bearer ${UPSTASH_TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
     })
 
     const cached = response.data?.result
@@ -298,7 +285,6 @@ app.get('/api/cache-status', async (req, res) => {
   }
 })
 
-// 🔊 Server starten
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000 (mit Redis REST Cache)')
 })
