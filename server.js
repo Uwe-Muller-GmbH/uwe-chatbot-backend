@@ -212,25 +212,23 @@ app.post('/api/faq', async (req, res) => {
     await client.query('BEGIN')
     await client.query('DELETE FROM faq')
 
-    for (const item of faqs) {
-      if (!item.frage || !item.antwort) {
-        console.warn('⚠️ Ungültiger FAQ-Eintrag übersprungen:', item)
-        continue
-      }
+for (const item of faqs) {
+  if (!item.frage || !item.antwort) {
+    console.warn('⚠️ Ungültiger FAQ-Eintrag übersprungen:', item)
+    continue
+  }
 
-      try {
-        await client.query(
-          'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
-          [item.frage, item.antwort]
-        )
-      } catch (err) {
-        if (err.code === '23505') {
-          console.warn('⚠️ Duplikat übersprungen:', item.frage)
-        } else {
-          throw err
-        }
-      }
-    }
+  try {
+    await client.query(
+      'INSERT INTO faq (frage, antwort) VALUES ($1, $2) ON CONFLICT (frage) DO NOTHING',
+      [item.frage, item.antwort]
+    )
+  } catch (err) {
+    console.warn('⚠️ Fehler bei Eintrag:', item.frage, err.message)
+    // kein throw mehr – damit die Schleife nicht abbricht
+  }
+}
+
 
     await client.query('COMMIT')
     client.release()
