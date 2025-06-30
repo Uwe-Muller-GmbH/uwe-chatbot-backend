@@ -109,7 +109,7 @@ if (saved === PASSWORD) {
     }
 
 function logout() {
-  localStorage.removeItem('admin_pass'); // <<< NEU: Passwort vergessen
+  localStorage.removeItem('admin_pass'); // 🟢 Passwort entfernen beim Logout
   document.getElementById('admin-panel').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('admin-password').value = '';
