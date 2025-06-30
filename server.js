@@ -4,7 +4,6 @@ import 'dotenv/config'
 import cors from 'cors'
 import pg from 'pg'
 import Fuse from 'fuse.js'
-import { createClient } from 'redis'
 
 const app = express()
 app.use(express.static('public'))
@@ -23,34 +22,48 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 })
 
-// 🔌 Redis Client
-const redis = createClient({
-  url: process.env.REDIS_URL
-})
-redis.connect().catch(console.error)
+// 🧠 Redis REST API via Upstash
+const UPSTASH_URL = process.env.UPSTASH_REST_URL
+const UPSTASH_TOKEN = process.env.UPSTASH_REST_TOKEN
 
 let fuse = null
 
 async function loadFaqData() {
   try {
-    // ⏱️ Versuche Cache aus Redis
-    const cached = await redis.get('faq')
+    const response = await axios.get(`${UPSTASH_URL}/get/faq`, {
+      headers: {
+        Authorization: `Bearer ${UPSTASH_TOKEN}`
+      }
+    })
+
+    const cached = response.data?.result
     if (cached) {
       return JSON.parse(cached)
     }
-
-    // 📦 Aus Datenbank laden, wenn nicht im Cache
-    const result = await pool.query('SELECT frage, antwort FROM faq')
-    const data = result.rows
-
-    // In Redis speichern für 5 Minuten
-    await redis.set('faq', JSON.stringify(data), { EX: 300 })
-
-    return data
   } catch (err) {
-    console.warn('⚠️ Fehler beim FAQ-Cache:', err.message)
-    return []
+    console.warn('⚠️ Redis REST read failed:', err.message)
   }
+
+  // Fallback: DB
+  const result = await pool.query('SELECT frage, antwort FROM faq')
+  const data = result.rows
+
+  // Save to Redis (REST API)
+  try {
+    await axios.post(`${UPSTASH_URL}/set/faq`, {
+      value: JSON.stringify(data),
+      expiration: 300
+    }, {
+      headers: {
+        Authorization: `Bearer ${UPSTASH_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    })
+  } catch (err) {
+    console.warn('⚠️ Redis REST write failed:', err.message)
+  }
+
+  return data
 }
 
 app.post('/api/chat', async (req, res) => {
@@ -174,8 +187,17 @@ app.post('/api/faq', async (req, res) => {
     await client.query('COMMIT')
     client.release()
 
-    // 🚮 Redis-Cache löschen
-    await redis.del('faq')
+    // 🚮 Cache löschen in Redis
+    try {
+      await axios.get(`${UPSTASH_URL}/del/faq`, {
+        headers: {
+          Authorization: `Bearer ${UPSTASH_TOKEN}`
+        }
+      })
+    } catch (err) {
+      console.warn('⚠️ Fehler beim Cache-Löschen (Redis):', err.message)
+    }
+
     fuse = null
 
     res.json({ success: true })
@@ -187,5 +209,5 @@ app.post('/api/faq', async (req, res) => {
 
 // 🔊 Server starten
 app.listen(3000, () => {
-  console.log('✅ Profiausbau-Chatbot läuft auf Port 3000')
+  console.log('✅ Profiausbau-Chatbot läuft auf Port 3000 (mit Redis REST Cache)')
 })
