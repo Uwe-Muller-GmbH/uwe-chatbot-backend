@@ -1,3 +1,4 @@
+<!-- BEGIN: admin.html -->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -47,6 +48,11 @@
     }
     .answer-box {
       margin-top: 8px;
+    }
+    .save-status {
+      display: inline-block;
+      margin-left: 10px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -106,9 +112,7 @@
     }
 
     function handleEnter(e) {
-      if (e.key === 'Enter') {
-        checkPassword();
-      }
+      if (e.key === 'Enter') checkPassword();
     }
 
     async function loadFAQ() {
@@ -127,6 +131,7 @@
         document.getElementById('status').textContent = '⚠️ Bitte fülle das Feld aus.';
         return;
       }
+
       try {
         const json = JSON.parse(text);
         const res = await fetch('/api/faq', {
@@ -134,25 +139,24 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(json)
         });
-        if (res.ok) {
-          document.getElementById('status').textContent = '✅ Gespeichert!';
-        } else {
-          document.getElementById('status').textContent = '❌ Fehler beim Speichern!';
-        }
+        document.getElementById('status').textContent = res.ok
+          ? '✅ Gespeichert!'
+          : '❌ Fehler beim Speichern!';
       } catch (e) {
         document.getElementById('status').textContent = '⚠️ Ungültiges JSON!';
       }
     }
 
     document.getElementById('clear-cache-btn').addEventListener('click', async () => {
-      const msg = document.getElementById('cache-msg')
-      msg.textContent = '⏳ Cache wird gelöscht...'
-
+      const msg = document.getElementById('cache-msg');
+      msg.textContent = '⏳ Cache wird gelöscht...';
       try {
         const res = await fetch('/api/cache', { method: 'DELETE' });
         const result = await res.json();
-        msg.textContent = result.success ? '✅ Cache erfolgreich gelöscht.' : '❌ Fehler: ' + (result.error || 'Unbekannt');
-      } catch (err) {
+        msg.textContent = result.success
+          ? '✅ Cache erfolgreich gelöscht.'
+          : '❌ Fehler: ' + (result.error || 'Unbekannt');
+      } catch {
         msg.textContent = '❌ Verbindung fehlgeschlagen.';
       }
     });
@@ -168,7 +172,7 @@
           const div = document.createElement('div');
           div.className = 'candidate';
           div.innerHTML = `
-            <b>Frage:</b> ${item.frage}<br>
+            <div class="frage" data-frage="${encodeURIComponent(item.frage)}"><b>Frage:</b> ${item.frage}</div>
             <button onclick="this.nextElementSibling.style.display='block'">➕ Zur FAQ übernehmen</button>
             <div class="answer-box" style="display:none">
               <textarea rows="3" style="width:100%" placeholder="Antwort eingeben..."></textarea><br>
@@ -184,11 +188,17 @@
     }
 
     async function addFaq(button) {
-      const parent = button.closest('.answer-box');
-      const frage = parent.previousElementSibling.previousElementSibling.textContent.replace('Frage:', '').trim();
-      const antwort = parent.querySelector('textarea').value.trim();
-      const status = parent.querySelector('.save-status');
-      if (!antwort) return status.textContent = '⚠️ Antwort fehlt';
+      const box = button.closest('.answer-box');
+      const frageElem = box.parentElement.querySelector('.frage');
+      const frage = decodeURIComponent(frageElem.dataset.frage || '').trim();
+      const antwort = box.querySelector('textarea').value.trim();
+      const status = box.querySelector('.save-status');
+
+      if (!antwort) {
+        status.textContent = '⚠️ Antwort fehlt';
+        status.style.color = 'red';
+        return;
+      }
 
       try {
         const res = await fetch('/api/faq-add-single', {
@@ -197,11 +207,20 @@
           body: JSON.stringify({ frage, antwort })
         });
         const result = await res.json();
-        status.textContent = result.success ? '✅ Gespeichert' : '❌ Fehler';
-      } catch (err) {
+        if (result.success) {
+          status.textContent = '✅ Gespeichert';
+          status.style.color = 'green';
+          box.style.display = 'none';
+        } else {
+          status.textContent = '❌ Fehler';
+          status.style.color = 'red';
+        }
+      } catch {
         status.textContent = '❌ Fehler beim Speichern';
+        status.style.color = 'red';
       }
     }
   </script>
 </body>
 </html>
+<!-- END: admin.html -->
