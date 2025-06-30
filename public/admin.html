@@ -54,9 +54,6 @@
       margin-left: 10px;
       font-weight: bold;
     }
-    .score-box {
-      margin-top: 6px;
-    }
   </style>
 </head>
 <body>
@@ -88,7 +85,9 @@
     const PASSWORD = '3092077236629566Ll';
 
     const saved = localStorage.getItem('admin_pass');
-    if (saved === PASSWORD) showAdminPanel();
+    if (saved === PASSWORD) {
+      showAdminPanel();
+    }
 
     function checkPassword() {
       const input = document.getElementById('admin-password').value.trim();
@@ -128,7 +127,7 @@
         const res = await fetch('/api/faq');
         const json = await res.json();
         document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
-      } catch {
+      } catch (err) {
         document.getElementById('status').textContent = '❌ Fehler beim Laden der Daten!';
       }
     }
@@ -150,7 +149,7 @@
         document.getElementById('status').textContent = res.ok
           ? '✅ Gespeichert!'
           : '❌ Fehler beim Speichern!';
-      } catch {
+      } catch (e) {
         document.getElementById('status').textContent = '⚠️ Ungültiges JSON!';
       }
     }
@@ -187,11 +186,6 @@
               <button onclick="addFaq(this)">✅ Speichern</button>
               <span class="save-status"></span>
             </div>
-            <div class="score-box">
-              <input type="number" placeholder="Score" min="0" max="1" step="0.01" style="width:60px;">
-              <button onclick="saveScore(this)">💾 Score</button>
-              <span class="save-status"></span>
-            </div>
           `;
           container.appendChild(div);
         });
@@ -213,6 +207,9 @@
         return;
       }
 
+      status.textContent = '⏳ Wird gespeichert...';
+      status.style.color = 'gray';
+
       try {
         const res = await fetch('/api/faq-add-single', {
           method: 'POST',
@@ -223,41 +220,7 @@
         if (result.success) {
           status.textContent = '✅ Gespeichert';
           status.style.color = 'green';
-          box.style.display = 'none';
-        } else {
-          status.textContent = '❌ Fehler';
-          status.style.color = 'red';
-        }
-      } catch {
-        status.textContent = '❌ Fehler beim Speichern';
-        status.style.color = 'red';
-      }
-    }
-
-    async function saveScore(button) {
-      const box = button.closest('.score-box');
-      const frageElem = box.parentElement.querySelector('.frage');
-      const frage = decodeURIComponent(frageElem.dataset.frage || '').trim();
-      const input = box.querySelector('input');
-      const score = parseFloat(input.value);
-      const status = box.querySelector('.save-status');
-
-      if (isNaN(score)) {
-        status.textContent = '⚠️ Zahl fehlt';
-        status.style.color = 'red';
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/faq-score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ frage, score })
-        });
-        const result = await res.json();
-        if (result.success) {
-          status.textContent = '✅ Score gespeichert';
-          status.style.color = 'green';
+          setTimeout(() => box.parentElement.remove(), 2000);
         } else {
           status.textContent = '❌ Fehler';
           status.style.color = 'red';
