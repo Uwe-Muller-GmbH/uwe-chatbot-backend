@@ -234,9 +234,22 @@ app.post('/api/faq', async (req, res) => {
     await client.query('BEGIN')
     await client.query('DELETE FROM faq')
 
-    for (const item of faqs) {
-      await client.query('INSERT INTO faq (frage, antwort) VALUES ($1, $2)', [item.frage, item.antwort])
+for (const item of faqs) {
+  if (!item.frage || !item.antwort) continue
+  try {
+    await client.query(
+      'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
+      [item.frage, item.antwort]
+    )
+  } catch (err) {
+    if (err.code === '23505') {
+      console.warn(`⚠️ Duplikat übersprungen: "${item.frage}"`)
+    } else {
+      throw err
     }
+  }
+}
+
 
     await client.query('COMMIT')
     client.release()
