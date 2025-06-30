@@ -44,11 +44,9 @@ async function loadFaqData() {
     console.warn('⚠️ Redis REST read failed:', err.message)
   }
 
-  // Fallback: DB
   const result = await pool.query('SELECT frage, antwort FROM faq')
   const data = result.rows
 
-  // Save to Redis (REST API)
   try {
     await axios.post(`${UPSTASH_URL}/set/faq`, {
       value: JSON.stringify(data),
@@ -97,7 +95,6 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply: antwort })
   }
 
-  // GPT-Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -175,44 +172,51 @@ app.get('/api/faq-candidates', async (req, res) => {
       GROUP BY frage
       ORDER BY anzahl DESC
       LIMIT 20
-    `);
-    res.json(result.rows);
+    `)
+    res.json(result.rows)
   } catch (err) {
-    console.error('❌ Fehler bei /api/faq-candidates:', err.message);
-    res.status(500).json({ error: 'Fehler beim Laden der Kandidaten' });
+    console.error('❌ Fehler bei /api/faq-candidates:', err.message)
+    res.status(500).json({ error: 'Fehler beim Laden der Kandidaten' })
   }
-});
+})
 
-// ➕ Einzelne FAQ speichern (aus Kandidaten)
+// ➕ Einzelne FAQ speichern (aus Kandidaten) – MIT LOGGING
 app.post('/api/faq-add-single', async (req, res) => {
-  const { frage, antwort } = req.body;
+  const { frage, antwort } = req.body
+
+  console.log('📥 Neue FAQ-Kandidat-Anfrage empfangen:')
+  console.log('Frage:', frage)
+  console.log('Antwort:', antwort)
+
   if (!frage || !antwort) {
-    return res.status(400).json({ error: 'Frage oder Antwort fehlt' });
+    console.warn('❌ Ungültige Daten: Frage oder Antwort fehlt')
+    return res.status(400).json({ error: 'Frage oder Antwort fehlt' })
   }
 
   try {
     await pool.query(
       'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
       [frage, antwort]
-    );
+    )
+    console.log('✅ FAQ erfolgreich gespeichert in DB.')
 
-    // Cache löschen (Upstash Redis REST)
     try {
-      await axios.get(`${process.env.UPSTASH_REST_URL}/del/faq`, {
+      await axios.get(`${UPSTASH_URL}/del/faq`, {
         headers: {
-          Authorization: `Bearer ${process.env.UPSTASH_REST_TOKEN}`
+          Authorization: `Bearer ${UPSTASH_TOKEN}`
         }
-      });
+      })
+      console.log('🧹 Redis-Cache gelöscht nach Eintrag.')
     } catch (err) {
-      console.warn('⚠️ Fehler beim Cache-Löschen (Redis):', err.message);
+      console.warn('⚠️ Fehler beim Cache-Löschen (Redis):', err.message)
     }
 
-    res.json({ success: true });
+    res.json({ success: true })
   } catch (err) {
-    console.error('❌ Fehler beim Speichern eines FAQ-Eintrags:', err.message);
-    res.status(500).json({ error: 'Fehler beim Speichern' });
+    console.error('❌ Fehler beim Speichern eines FAQ-Eintrags:', err.message)
+    res.status(500).json({ error: 'Fehler beim Speichern' })
   }
-});
+})
 
 // 💾 POST: FAQ speichern (Admin)
 app.post('/api/faq', async (req, res) => {
@@ -236,7 +240,6 @@ app.post('/api/faq', async (req, res) => {
     await client.query('COMMIT')
     client.release()
 
-    // 🚮 Cache löschen in Redis
     try {
       await axios.get(`${UPSTASH_URL}/del/faq`, {
         headers: {
@@ -248,13 +251,13 @@ app.post('/api/faq', async (req, res) => {
     }
 
     fuse = null
-
     res.json({ success: true })
   } catch (err) {
     console.error('❌ Fehler beim Speichern:', err.message)
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' })
   }
 })
+
 // 🧼 Admin-API: Redis-Cache manuell löschen
 app.delete('/api/cache', async (req, res) => {
   try {
@@ -271,7 +274,7 @@ app.delete('/api/cache', async (req, res) => {
   }
 })
 
-// ✅ 🧪 NEU: Redis Cache-Status prüfen
+// ✅ Redis Cache-Status prüfen
 app.get('/api/cache-status', async (req, res) => {
   try {
     const response = await axios.get(`${UPSTASH_URL}/get/faq`, {
