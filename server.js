@@ -151,7 +151,7 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
   }
 })
 
-// 📤 GET: FAQ abrufen
+// 📤 FAQ abrufen
 app.get('/api/faq', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM faq')
@@ -180,7 +180,7 @@ app.get('/api/faq-candidates', async (req, res) => {
   }
 })
 
-// ➕ Einzelne FAQ speichern (aus Kandidaten) – MIT LOGGING
+// ➕ Einzelne FAQ speichern
 app.post('/api/faq-add-single', async (req, res) => {
   const { frage, antwort } = req.body
 
@@ -194,10 +194,14 @@ app.post('/api/faq-add-single', async (req, res) => {
   }
 
   try {
-    await pool.query(
-      'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
-      [frage, antwort]
-    )
+    // OPTIONAL: Duplikate verhindern
+    const check = await pool.query('SELECT id FROM faq WHERE frage = $1', [frage])
+    if (check.rowCount > 0) {
+      console.log('⚠️ Eintrag existiert bereits. Nicht erneut gespeichert.')
+      return res.json({ success: false, error: 'Eintrag existiert bereits' })
+    }
+
+    await pool.query('INSERT INTO faq (frage, antwort) VALUES ($1, $2)', [frage, antwort])
     console.log('✅ FAQ erfolgreich gespeichert in DB.')
 
     try {
@@ -218,7 +222,7 @@ app.post('/api/faq-add-single', async (req, res) => {
   }
 })
 
-// 💾 POST: FAQ speichern (Admin)
+// 💾 Admin: Komplette FAQ speichern
 app.post('/api/faq', async (req, res) => {
   const faqs = req.body
   if (!Array.isArray(faqs)) {
@@ -231,10 +235,7 @@ app.post('/api/faq', async (req, res) => {
     await client.query('DELETE FROM faq')
 
     for (const item of faqs) {
-      await client.query(
-        'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
-        [item.frage, item.antwort]
-      )
+      await client.query('INSERT INTO faq (frage, antwort) VALUES ($1, $2)', [item.frage, item.antwort])
     }
 
     await client.query('COMMIT')
@@ -242,9 +243,7 @@ app.post('/api/faq', async (req, res) => {
 
     try {
       await axios.get(`${UPSTASH_URL}/del/faq`, {
-        headers: {
-          Authorization: `Bearer ${UPSTASH_TOKEN}`
-        }
+        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
       })
     } catch (err) {
       console.warn('⚠️ Fehler beim Cache-Löschen (Redis):', err.message)
@@ -258,13 +257,11 @@ app.post('/api/faq', async (req, res) => {
   }
 })
 
-// 🧼 Admin-API: Redis-Cache manuell löschen
+// 🧼 Redis-Cache manuell löschen
 app.delete('/api/cache', async (req, res) => {
   try {
     await axios.get(`${UPSTASH_URL}/del/faq`, {
-      headers: {
-        Authorization: `Bearer ${UPSTASH_TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
     })
     console.log('🧹 Redis-Cache gelöscht')
     return res.json({ success: true, message: 'Cache gelöscht' })
@@ -274,21 +271,16 @@ app.delete('/api/cache', async (req, res) => {
   }
 })
 
-// ✅ Redis Cache-Status prüfen
+// ✅ Redis Cache-Status
 app.get('/api/cache-status', async (req, res) => {
   try {
     const response = await axios.get(`${UPSTASH_URL}/get/faq`, {
-      headers: {
-        Authorization: `Bearer ${UPSTASH_TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
     })
 
     const cached = response.data?.result
     if (cached) {
-      return res.json({
-        cached: true,
-        count: JSON.parse(cached).length
-      })
+      return res.json({ cached: true, count: JSON.parse(cached).length })
     }
 
     return res.json({ cached: false })
@@ -298,7 +290,7 @@ app.get('/api/cache-status', async (req, res) => {
   }
 })
 
-// 🔊 Server starten
+// 🔊 Start
 app.listen(3000, () => {
   console.log('✅ Profiausbau-Chatbot läuft auf Port 3000 (mit Redis REST Cache)')
 })
