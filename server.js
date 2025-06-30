@@ -4,6 +4,7 @@ import 'dotenv/config'
 import cors from 'cors'
 import pg from 'pg'
 import Fuse from 'fuse.js'
+import { createClient } from 'redis'
 
 const app = express()
 app.use(express.static('public'))
@@ -22,39 +23,41 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 })
 
-// 🧠 Caching für FAQ & Fuse
-let cachedFaqData = []
-let lastFetch = 0
+// 🔌 Redis Client
+const redis = createClient({
+  url: process.env.REDIS_URL
+})
+redis.connect().catch(console.error)
+
 let fuse = null
 
 async function loadFaqData() {
-  const now = Date.now()
-  if (cachedFaqData.length && now - lastFetch < 5 * 60 * 1000) {
-    return cachedFaqData
-  }
-
   try {
-    const result = await pool.query('SELECT frage, antwort FROM faq')
-    cachedFaqData = result.rows
-    lastFetch = now
-    fuse = new Fuse(cachedFaqData, {
-      keys: ['frage'],
-      threshold: 0.5,
-      distance: 100,
-      minMatchCharLength: 2
-    })
-  } catch (err) {
-    console.warn('⚠️ Fehler beim Laden der FAQ aus DB:', err.message)
-  }
+    // ⏱️ Versuche Cache aus Redis
+    const cached = await redis.get('faq')
+    if (cached) {
+      return JSON.parse(cached)
+    }
 
-  return cachedFaqData
+    // 📦 Aus Datenbank laden, wenn nicht im Cache
+    const result = await pool.query('SELECT frage, antwort FROM faq')
+    const data = result.rows
+
+    // In Redis speichern für 5 Minuten
+    await redis.set('faq', JSON.stringify(data), { EX: 300 })
+
+    return data
+  } catch (err) {
+    console.warn('⚠️ Fehler beim FAQ-Cache:', err.message)
+    return []
+  }
 }
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
 
   const faqData = await loadFaqData()
-  if (!fuse) {
+  if (!fuse || !fuse._docs || fuse._docs.length !== faqData.length) {
     fuse = new Fuse(faqData, {
       keys: ['frage'],
       threshold: 0.5,
@@ -171,9 +174,8 @@ app.post('/api/faq', async (req, res) => {
     await client.query('COMMIT')
     client.release()
 
-    // 🔁 Cache invalidieren nach Änderung
-    cachedFaqData = []
-    lastFetch = 0
+    // 🚮 Redis-Cache löschen
+    await redis.del('faq')
     fuse = null
 
     res.json({ success: true })
