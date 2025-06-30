@@ -108,15 +108,16 @@ if (saved === PASSWORD) {
       loadCandidates();
     }
 
-    function logout() {
-      document.getElementById('admin-panel').style.display = 'none';
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('admin-password').value = '';
-      document.getElementById('faq-content').value = '';
-      document.getElementById('status').textContent = '';
-      document.getElementById('clear-cache-btn').style.display = 'none';
-      document.getElementById('cache-msg').textContent = '';
-    }
+function logout() {
+  localStorage.removeItem('admin_pass'); // <<< NEU: Passwort vergessen
+  document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-password').value = '';
+  document.getElementById('faq-content').value = '';
+  document.getElementById('status').textContent = '';
+  document.getElementById('clear-cache-btn').style.display = 'none';
+  document.getElementById('cache-msg').textContent = '';
+}
 
     function handleEnter(e) {
       if (e.key === 'Enter') checkPassword();
