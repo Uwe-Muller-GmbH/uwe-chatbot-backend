@@ -126,5 +126,28 @@
       }
     }
   </script>
+  <button id="clear-cache-btn">🧹 Cache löschen</button>
+<p id="cache-msg" style="margin-top:10px;"></p>
+<script>
+  document.getElementById('clear-cache-btn').addEventListener('click', async () => {
+    const msg = document.getElementById('cache-msg')
+    msg.textContent = '⏳ Cache wird gelöscht...'
+
+    try {
+      const res = await fetch('/api/cache', {
+        method: 'DELETE'
+      })
+      const result = await res.json()
+      if (result.success) {
+        msg.textContent = '✅ Cache erfolgreich gelöscht.'
+      } else {
+        msg.textContent = '❌ Fehler: ' + (result.error || 'Unbekannt')
+      }
+    } catch (err) {
+      msg.textContent = '❌ Verbindung fehlgeschlagen.'
+    }
+  })
+</script>
+
 </body>
 </html>
