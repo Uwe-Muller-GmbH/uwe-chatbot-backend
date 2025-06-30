@@ -206,6 +206,21 @@ app.post('/api/faq', async (req, res) => {
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' })
   }
 })
+// 🧼 Admin-API: Redis-Cache manuell löschen
+app.delete('/api/cache', async (req, res) => {
+  try {
+    await axios.get(`${UPSTASH_URL}/del/faq`, {
+      headers: {
+        Authorization: `Bearer ${UPSTASH_TOKEN}`
+      }
+    })
+    console.log('🧹 Redis-Cache gelöscht')
+    return res.json({ success: true, message: 'Cache gelöscht' })
+  } catch (err) {
+    console.error('❌ Fehler beim Cache-Löschen:', err.message)
+    return res.status(500).json({ success: false, error: 'Cache konnte nicht gelöscht werden' })
+  }
+})
 
 // ✅ 🧪 NEU: Redis Cache-Status prüfen
 app.get('/api/cache-status', async (req, res) => {
