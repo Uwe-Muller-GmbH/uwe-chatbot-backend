@@ -56,6 +56,8 @@
     <textarea id="faq-content"></textarea>
     <br>
     <button onclick="saveFAQ()">💾 Speichern</button>
+    <button id="clear-cache-btn" style="display: none;">🧹 Cache löschen</button>
+    <p id="cache-msg" style="margin-top:10px;"></p>
     <p id="status" style="color: green;"></p>
     <button id="logout-button" onclick="logout()">🚪 Logout</button>
   </div>
@@ -75,6 +77,7 @@
     function showAdminPanel() {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-panel').style.display = 'block';
+      document.getElementById('clear-cache-btn').style.display = 'inline-block';
       loadFAQ();
     }
 
@@ -84,6 +87,8 @@
       document.getElementById('admin-password').value = '';
       document.getElementById('faq-content').value = '';
       document.getElementById('status').textContent = '';
+      document.getElementById('clear-cache-btn').style.display = 'none';
+      document.getElementById('cache-msg').textContent = '';
     }
 
     function handleEnter(e) {
@@ -125,29 +130,26 @@
         document.getElementById('status').textContent = '⚠️ Ungültiges JSON!';
       }
     }
-  </script>
-  <button id="clear-cache-btn">🧹 Cache löschen</button>
-<p id="cache-msg" style="margin-top:10px;"></p>
-<script>
-  document.getElementById('clear-cache-btn').addEventListener('click', async () => {
-    const msg = document.getElementById('cache-msg')
-    msg.textContent = '⏳ Cache wird gelöscht...'
 
-    try {
-      const res = await fetch('/api/cache', {
-        method: 'DELETE'
-      })
-      const result = await res.json()
-      if (result.success) {
-        msg.textContent = '✅ Cache erfolgreich gelöscht.'
-      } else {
-        msg.textContent = '❌ Fehler: ' + (result.error || 'Unbekannt')
+    // 🧹 Cache löschen
+    document.getElementById('clear-cache-btn').addEventListener('click', async () => {
+      const msg = document.getElementById('cache-msg')
+      msg.textContent = '⏳ Cache wird gelöscht...'
+
+      try {
+        const res = await fetch('/api/cache', {
+          method: 'DELETE'
+        })
+        const result = await res.json()
+        if (result.success) {
+          msg.textContent = '✅ Cache erfolgreich gelöscht.'
+        } else {
+          msg.textContent = '❌ Fehler: ' + (result.error || 'Unbekannt')
+        }
+      } catch (err) {
+        msg.textContent = '❌ Verbindung fehlgeschlagen.'
       }
-    } catch (err) {
-      msg.textContent = '❌ Verbindung fehlgeschlagen.'
-    }
-  })
-</script>
-
+    })
+  </script>
 </body>
 </html>
