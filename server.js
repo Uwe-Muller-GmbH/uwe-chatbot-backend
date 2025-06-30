@@ -165,6 +165,55 @@ app.get('/api/faq', async (req, res) => {
   }
 })
 
+// 📊 FAQ-Kandidaten (Top 20 GPT-Fragen)
+app.get('/api/faq-candidates', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT frage, COUNT(*) AS anzahl
+      FROM chat_log
+      WHERE quelle = 'gpt'
+      GROUP BY frage
+      ORDER BY anzahl DESC
+      LIMIT 20
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Fehler bei /api/faq-candidates:', err.message);
+    res.status(500).json({ error: 'Fehler beim Laden der Kandidaten' });
+  }
+});
+
+// ➕ Einzelne FAQ speichern (aus Kandidaten)
+app.post('/api/faq-add-single', async (req, res) => {
+  const { frage, antwort } = req.body;
+  if (!frage || !antwort) {
+    return res.status(400).json({ error: 'Frage oder Antwort fehlt' });
+  }
+
+  try {
+    await pool.query(
+      'INSERT INTO faq (frage, antwort) VALUES ($1, $2)',
+      [frage, antwort]
+    );
+
+    // Cache löschen (Upstash Redis REST)
+    try {
+      await axios.get(`${process.env.UPSTASH_REST_URL}/del/faq`, {
+        headers: {
+          Authorization: `Bearer ${process.env.UPSTASH_REST_TOKEN}`
+        }
+      });
+    } catch (err) {
+      console.warn('⚠️ Fehler beim Cache-Löschen (Redis):', err.message);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Fehler beim Speichern eines FAQ-Eintrags:', err.message);
+    res.status(500).json({ error: 'Fehler beim Speichern' });
+  }
+});
+
 // 💾 POST: FAQ speichern (Admin)
 app.post('/api/faq', async (req, res) => {
   const faqs = req.body
