@@ -130,8 +130,17 @@ Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
       }
     )
 
-    const botReply = response.data.choices?.[0]?.message?.content
-    if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' })
+    let botReply = response.data.choices?.[0]?.message?.content;
+
+if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
+
+// ✅ Sicherheitsprüfung für GPT-Antwort
+if (
+  botReply.toLowerCase().includes("geschäftsführer") &&
+  !botReply.toLowerCase().includes("leszek damian cieslok")
+) {
+  botReply = "Der Geschäftsführer der Profiausbau Aachen GmbH ist Leszek Damian Cieslok.";
+}
 
     try {
       await pool.query(
