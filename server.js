@@ -76,18 +76,28 @@ app.post('/api/chat', async (req, res) => {
 
   const result = fuse.search(message)
   if (result.length) {
-    const antwort = result[0].item.antwort
-    try {
-      await pool.query(
-        'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
-        [message, antwort, 'faq']
-      )
-    } catch (err) {
-      console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message)
-    }
-    console.log('✅ FAQ-Treffer:', result[0].item.frage)
-    return res.json({ reply: antwort })
+  let antwort = result[0].item.antwort;
+
+  // ✅ Sicherheitsprüfung Geschäftsführer
+  if (
+    antwort.toLowerCase().includes("geschäftsführer") &&
+    !antwort.toLowerCase().includes("leszek damian cieslok")
+  ) {
+    antwort = "Der Geschäftsführer der Profiausbau Aachen GmbH ist Leszek Damian Cieslok.";
   }
+
+  try {
+    await pool.query(
+      'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
+      [message, antwort, 'faq']
+    );
+  } catch (err) {
+    console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message);
+  }
+  console.log('✅ FAQ-Treffer:', result[0].item.frage);
+  return res.json({ reply: antwort });
+}
+
 
   try {
     const response = await axios.post(
