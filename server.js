@@ -76,27 +76,28 @@ app.post('/api/chat', async (req, res) => {
 
   const result = fuse.search(message)
   if (result.length) {
-    let antwort = result[0].item.antwort;
+  let antwort = result[0].item.antwort;
 
-    // ✅ Sicherheitsprüfung Geschäftsführer
-    if (
-      antwort.toLowerCase().includes("geschäftsführer") &&
-      !antwort.toLowerCase().includes("leszek damian cieslok")
-    ) {
-      antwort = "Der Geschäftsführer der Profiausbau Aachen GmbH ist Leszek Damian Cieslok.";
-    }
-
-    try {
-      await pool.query(
-        'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
-        [message, antwort, 'faq']
-      );
-    } catch (err) {
-      console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message);
-    }
-    console.log('✅ FAQ-Treffer:', result[0].item.frage);
-    return res.json({ reply: antwort });
+  // ✅ Sicherheitsprüfung Geschäftsführer
+  if (
+    antwort.toLowerCase().includes("geschäftsführer") &&
+    !antwort.toLowerCase().includes("leszek damian cieslok")
+  ) {
+    antwort = "Der Geschäftsführer der Profiausbau Aachen GmbH ist Leszek Damian Cieslok.";
   }
+
+  try {
+    await pool.query(
+      'INSERT INTO chat_log (frage, antwort, quelle) VALUES ($1, $2, $3)',
+      [message, antwort, 'faq']
+    );
+  } catch (err) {
+    console.warn('⚠️ Fehler beim Speichern des Logs (FAQ):', err.message);
+  }
+  console.log('✅ FAQ-Treffer:', result[0].item.frage);
+  return res.json({ reply: antwort });
+}
+
 
   try {
     const response = await axios.post(
@@ -106,7 +107,13 @@ app.post('/api/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.`
+            content: `Du agierst als digitaler Assistent der Profiausbau Aachen GmbH und antwortest im Namen des Unternehmens wie ein Mitarbeiter.
+
+Sprich professionell und freundlich. Sei klar, kurz und informativ. Nutze nur bekannte Inhalte.
+
+Wenn du etwas nicht weißt, bitte höflich um direkte Kontaktaufnahme:
+📧 info@profiausbau.com
+📞 +49 173 592 37 48`
           },
           { role: 'assistant', content: 'Willkommen bei Profiausbau Aachen GmbH! 👷‍♂️ Wie kann ich Ihnen helfen?' },
           { role: 'user', content: message }
@@ -125,15 +132,15 @@ app.post('/api/chat', async (req, res) => {
 
     let botReply = response.data.choices?.[0]?.message?.content;
 
-    if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
+if (!botReply) return res.status(500).json({ error: 'Antwort war leer.' });
 
-    // ✅ Sicherheitsprüfung für GPT-Antwort
-    if (
-      botReply.toLowerCase().includes("geschäftsführer") &&
-      !botReply.toLowerCase().includes("leszek damian cieslok")
-    ) {
-      botReply = "Der Geschäftsführer der Profiausbau Aachen GmbH ist Leszek Damian Cieslok.";
-    }
+// ✅ Sicherheitsprüfung für GPT-Antwort
+if (
+  botReply.toLowerCase().includes("geschäftsführer") &&
+  !botReply.toLowerCase().includes("leszek damian cieslok")
+) {
+  botReply = "Der Geschäftsführer der Profiausbau Aachen GmbH ist Leszek Damian Cieslok.";
+}
 
     try {
       await pool.query(
@@ -224,22 +231,23 @@ app.post('/api/faq', async (req, res) => {
     await client.query('BEGIN')
     await client.query('DELETE FROM faq')
 
-    for (const item of faqs) {
-      if (!item.frage || !item.antwort) {
-        console.warn('⚠️ Ungültiger FAQ-Eintrag übersprungen:', item)
-        continue
-      }
+for (const item of faqs) {
+  if (!item.frage || !item.antwort) {
+    console.warn('⚠️ Ungültiger FAQ-Eintrag übersprungen:', item)
+    continue
+  }
 
-      try {
-        await client.query(
-          'INSERT INTO faq (frage, antwort) VALUES ($1, $2) ON CONFLICT (frage) DO NOTHING',
-          [item.frage, item.antwort]
-        )
-      } catch (err) {
-        console.warn('⚠️ Fehler bei Eintrag:', item.frage, err.message)
-        // kein throw mehr – damit die Schleife nicht abbricht
-      }
-    }
+  try {
+    await client.query(
+      'INSERT INTO faq (frage, antwort) VALUES ($1, $2) ON CONFLICT (frage) DO NOTHING',
+      [item.frage, item.antwort]
+    )
+  } catch (err) {
+    console.warn('⚠️ Fehler bei Eintrag:', item.frage, err.message)
+    // kein throw mehr – damit die Schleife nicht abbricht
+  }
+}
+
 
     await client.query('COMMIT')
     client.release()
@@ -257,6 +265,40 @@ app.post('/api/faq', async (req, res) => {
   } catch (err) {
     console.error('❌ Fehler beim Speichern:', err.message)
     res.status(500).json({ error: 'FAQ konnten nicht gespeichert werden' })
+  }
+})
+
+app.delete('/api/cache', async (req, res) => {
+  try {
+    await axios.get(`${UPSTASH_URL}/del/faq`, {
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
+    })
+    console.log('🧹 Redis-Cache gelöscht')
+    return res.json({ success: true, message: 'Cache gelöscht' })
+  } catch (err) {
+    console.error('❌ Fehler beim Cache-Löschen:', err.message)
+    return res.status(500).json({ success: false, error: 'Cache konnte nicht gelöscht werden' })
+  }
+})
+
+app.get('/api/cache-status', async (req, res) => {
+  try {
+    const response = await axios.get(`${UPSTASH_URL}/get/faq`, {
+      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
+    })
+
+    const cached = response.data?.result
+    if (cached) {
+      return res.json({
+        cached: true,
+        count: JSON.parse(cached).length
+      })
+    }
+
+    return res.json({ cached: false })
+  } catch (err) {
+    console.warn('❌ Fehler beim Cache-Check:', err.message)
+    return res.status(500).json({ error: 'Fehler beim Prüfen des Redis-Caches' })
   }
 })
 
