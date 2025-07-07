@@ -65,6 +65,17 @@ app.post('/api/chat', async (req, res) => {
   const { message } = req.body
   const faqData = await loadFaqData()
 
+  app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+
+  // ➤ NEU: Direkt auf Ping reagieren, ohne FAQ/GPT zu laden
+  if (message === 'ping') {
+    return res.json({ reply: 'pong' }); // schnelle Antwort zur Initialisierung
+  }
+
+  // ... hier geht dein bestehender Code weiter ...
+
+    
   if (!fuse || !fuse._docs || fuse._docs.length !== faqData.length) {
     fuse = new Fuse(faqData, {
       keys: ['frage'],
