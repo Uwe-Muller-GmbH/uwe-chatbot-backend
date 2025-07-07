@@ -231,6 +231,22 @@
       }
     }
   </script>
+
+  <script>
+  // Warm-up gleich nach Seitenaufruf (nach Cookie-Zustimmung optional)
+  window.addEventListener('load', function () {
+    fetch('https://profiausbau-chatbot-backend.onrender.com/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'ping' })
+    }).then(() => {
+      console.log('✅ Chatbot wurde vorgewärmt.');
+    }).catch(err => {
+      console.warn('⚠️ Fehler beim Vorwärmen:', err);
+    });
+  });
+</script>
+
 </body>
 </html>
 <!-- END: admin.html -->
