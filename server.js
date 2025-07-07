@@ -61,10 +61,6 @@ async function loadFaqData() {
   return data
 }
 
-app.post('/api/chat', async (req, res) => {
-  const { message } = req.body
-  const faqData = await loadFaqData()
-
   app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
 
@@ -75,6 +71,7 @@ app.post('/api/chat', async (req, res) => {
 
   // ... hier geht dein bestehender Code weiter ...
 
+  const faqData = await loadFaqData()
     
   if (!fuse || !fuse._docs || fuse._docs.length !== faqData.length) {
     fuse = new Fuse(faqData, {
