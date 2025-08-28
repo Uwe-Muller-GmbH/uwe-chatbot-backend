@@ -3,7 +3,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>FAQ Editor – Profiausbau</title>
+  <title>FAQ Editor – Uwe Müller GmbH</title>
   <style>
     body {
       font-family: sans-serif;
@@ -65,7 +65,7 @@
   </div>
 
   <div id="admin-panel" style="display: none;">
-    <h1>📋 FAQ Editor – Profiausbau</h1>
+    <h1>📋 FAQ Editor – Uwe Müller GmbH</h1>
     <p>Hier kannst du die Fragen und Antworten bearbeiten, die dein Chatbot verwendet.</p>
 
     <textarea id="faq-content"></textarea>
@@ -233,9 +233,9 @@
   </script>
 
   <script>
-  // Warm-up gleich nach Seitenaufruf (nach Cookie-Zustimmung optional)
+  // Warm-up gleich nach Seitenaufruf
   window.addEventListener('load', function () {
-    fetch('https://profiausbau-chatbot-backend.onrender.com/api/chat', {
+    fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: 'ping' })
@@ -245,7 +245,7 @@
       console.warn('⚠️ Fehler beim Vorwärmen:', err);
     });
   });
-</script>
+  </script>
 
 </body>
 </html>
