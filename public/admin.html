@@ -17,7 +17,7 @@
     }
     textarea {
       width: 100%;
-      height: 250px;
+      height: 300px;
       margin-top: 10px;
       font-family: monospace;
     }
@@ -30,30 +30,12 @@
       cursor: pointer;
       border-radius: 5px;
     }
-    button:hover {
-      background: #005f99;
-    }
+    button:hover { background: #005f99; }
     #logout-button {
       background: #999;
       margin-top: 30px;
     }
-    #logout-button:hover {
-      background: #666;
-    }
-    .candidate {
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 12px;
-    }
-    .answer-box {
-      margin-top: 8px;
-    }
-    .save-status {
-      display: inline-block;
-      margin-left: 10px;
-      font-weight: bold;
-    }
+    #logout-button:hover { background: #666; }
   </style>
 </head>
 <body>
@@ -71,32 +53,13 @@
     <textarea id="faq-content"></textarea>
     <br>
     <button onclick="saveFAQ()">💾 Speichern</button>
-    <button id="clear-cache-btn" style="display: none;">🧹 Cache löschen</button>
-    <p id="cache-msg" style="margin-top:10px;"></p>
+    <button id="clear-cache-btn">🧹 Cache löschen</button>
     <p id="status" style="color: green;"></p>
     <button id="logout-button" onclick="logout()">🚪 Logout</button>
-
-    <hr>
-    <h2>🧠 FAQ-Kandidaten aus Chat-Log (GPT)</h2>
-    <div id="faq-candidates"></div>
   </div>
 
   <script>
     const PASSWORD = '3092077236629566Ll';
-
-    // Default-FAQ (nur beim ersten Laden falls DB leer)
-    const DEFAULT_FAQ = [
-      { "frage": "Wo befindet sich die Uwe Müller GmbH?", "antwort": "Sie finden uns in der Dürener Straße 589a, 52249 Eschweiler." },
-      { "frage": "Wie sind Ihre Öffnungszeiten?", "antwort": "Wir sind Montag bis Freitag von 7:30 bis 17:00 Uhr für Sie da. Samstags nach Vereinbarung." },
-      { "frage": "Welche Leistungen bieten Sie an?", "antwort": "Wir sind Händler und Vermieter von Baumaschinen und Deutschlands größter Händler von FUSO Nutzfahrzeugen." },
-      { "frage": "Wie erreiche ich den Kundenservice?", "antwort": "Sie erreichen uns per E-Mail unter info@baumaschinen-mueller.de oder telefonisch unter +49 2403 997312." },
-      { "frage": "Wer ist der Geschäftsführer?", "antwort": "Uwe Müller ist Geschäftsführer für Baumaschinen und Nutzfahrzeuge. Zusätzlich ist Dr. Philip Müller Geschäftsführer für Baumaschinen." },
-      { "frage": "Kann man bei Ihnen Baumaschinen mieten?", "antwort": "Ja, wir vermieten verschiedene Baumaschinen. Bitte kontaktieren Sie uns für ein individuelles Angebot." },
-      { "frage": "Welche Marken von Nutzfahrzeugen führen Sie?", "antwort": "Wir sind Deutschlands größter Händler für FUSO Nutzfahrzeuge." },
-      { "frage": "Bieten Sie auch Ersatzteile und Service an?", "antwort": "Ja, wir bieten Ersatzteile und Werkstattservice für Baumaschinen und Nutzfahrzeuge an." },
-      { "frage": "Wie kann ich ein Angebot anfordern?", "antwort": "Sie können uns telefonisch, per E-Mail oder über das Kontaktformular auf unserer Website erreichen, um ein Angebot zu erhalten." },
-      { "frage": "Haben Sie auch gebrauchte Maschinen im Angebot?", "antwort": "Ja, neben Neumaschinen bieten wir auch gebrauchte Baumaschinen und Nutzfahrzeuge an." }
-    ];
 
     const saved = localStorage.getItem('admin_pass');
     if (saved === PASSWORD) {
@@ -116,9 +79,7 @@
     function showAdminPanel() {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-panel').style.display = 'block';
-      document.getElementById('clear-cache-btn').style.display = 'inline-block';
       loadFAQ();
-      loadCandidates();
     }
 
     function logout() {
@@ -128,8 +89,6 @@
       document.getElementById('admin-password').value = '';
       document.getElementById('faq-content').value = '';
       document.getElementById('status').textContent = '';
-      document.getElementById('clear-cache-btn').style.display = 'none';
-      document.getElementById('cache-msg').textContent = '';
     }
 
     function handleEnter(e) {
@@ -140,16 +99,9 @@
       try {
         const res = await fetch('/api/faq');
         const json = await res.json();
-        if (Array.isArray(json) && json.length > 0) {
-          document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
-        } else {
-          // Falls noch leer, Default setzen
-          document.getElementById('faq-content').value = JSON.stringify(DEFAULT_FAQ, null, 2);
-        }
+        document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
       } catch (err) {
         document.getElementById('status').textContent = '❌ Fehler beim Laden der Daten!';
-        // Fallback: Default anzeigen
-        document.getElementById('faq-content').value = JSON.stringify(DEFAULT_FAQ, null, 2);
       }
     }
 
@@ -176,98 +128,28 @@
     }
 
     document.getElementById('clear-cache-btn').addEventListener('click', async () => {
-      const msg = document.getElementById('cache-msg');
-      msg.textContent = '⏳ Cache wird gelöscht...';
+      const status = document.getElementById('status');
+      status.textContent = '⏳ Cache wird gelöscht...';
       try {
         const res = await fetch('/api/cache', { method: 'DELETE' });
         const result = await res.json();
-        msg.textContent = result.success
+        status.textContent = result.success
           ? '✅ Cache erfolgreich gelöscht.'
           : '❌ Fehler: ' + (result.error || 'Unbekannt');
       } catch {
-        msg.textContent = '❌ Verbindung fehlgeschlagen.';
+        status.textContent = '❌ Verbindung fehlgeschlagen.';
       }
     });
 
-    async function loadCandidates() {
-      try {
-        const res = await fetch('/api/faq-candidates');
-        const json = await res.json();
-        const container = document.getElementById('faq-candidates');
-        container.innerHTML = '';
-
-        json.forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'candidate';
-          div.innerHTML = `
-            <div class="frage" data-frage="${encodeURIComponent(item.frage)}"><b>Frage:</b> ${item.frage}</div>
-            <button onclick="this.nextElementSibling.style.display='block'">➕ Zur FAQ übernehmen</button>
-            <div class="answer-box" style="display:none">
-              <textarea rows="3" style="width:100%" placeholder="Antwort eingeben..."></textarea><br>
-              <button onclick="addFaq(this)">✅ Speichern</button>
-              <span class="save-status"></span>
-            </div>
-          `;
-          container.appendChild(div);
-        });
-      } catch (err) {
-        console.error('❌ Fehler beim Laden der Kandidaten:', err);
-      }
-    }
-
-    async function addFaq(button) {
-      const box = button.closest('.answer-box');
-      const frageElem = box.parentElement.querySelector('.frage');
-      const frage = decodeURIComponent(frageElem.dataset.frage || '').trim();
-      const antwort = box.querySelector('textarea').value.trim();
-      const status = box.querySelector('.save-status');
-
-      if (!antwort) {
-        status.textContent = '⚠️ Antwort fehlt';
-        status.style.color = 'red';
-        return;
-      }
-
-      status.textContent = '⏳ Wird gespeichert...';
-      status.style.color = 'gray';
-
-      try {
-        const res = await fetch('/api/faq-add-single', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ frage, antwort })
-        });
-        const result = await res.json();
-        if (result.success) {
-          status.textContent = '✅ Gespeichert';
-          status.style.color = 'green';
-          setTimeout(() => box.parentElement.remove(), 2000);
-        } else {
-          status.textContent = '❌ Fehler';
-          status.style.color = 'red';
-        }
-      } catch {
-        status.textContent = '❌ Fehler beim Speichern';
-        status.style.color = 'red';
-      }
-    }
-  </script>
-
-  <script>
-  // Warm-up gleich nach Seitenaufruf
-  window.addEventListener('load', function () {
-    fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'ping' })
-    }).then(() => {
-      console.log('✅ Chatbot wurde vorgewärmt.');
-    }).catch(err => {
-      console.warn('⚠️ Fehler beim Vorwärmen:', err);
+    // Warm-up
+    window.addEventListener('load', function () {
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'ping' })
+      });
     });
-  });
   </script>
-
 </body>
 </html>
 <!-- END: admin.html -->
