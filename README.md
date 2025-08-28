@@ -1,2 +1,2 @@
-# profiausbau-chatbot-backend
-profiausbau-chatbot-backend
+uwe-chatbot-backend
+uwe-chatbot-backend
