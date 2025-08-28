@@ -1,2 +1,4 @@
-# uwe-chatbot-backend
-uwe-chatbot-backend
+# Uwe Müller Chatbot Backend
+
+Dies ist das Chatbot-Backend für die Uwe Müller GmbH …
+
