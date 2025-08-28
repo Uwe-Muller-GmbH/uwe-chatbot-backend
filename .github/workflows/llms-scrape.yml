@@ -1,0 +1,31 @@
+name: LLMS Scrape to FAQ
+
+on:
+  schedule:
+    - cron: "0 3 * * *"  # täglich 03:00 UTC
+  workflow_dispatch:      # manuell auslösbar
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install
+
+      - name: Run scraper
+        env:
+          LLMS_SOURCES: "https://www.profiausbau.com/llms.txt,https://www.profiausbau.com/llms-full.txt"
+          BACKEND_URL: "https://profiausbau-chatbot-backend.onrender.com/api/faq"
+        run: node tools/scrape_llms_to_faq.mjs
+
+      - name: Clear cache (optional)
+        run: |
+          curl -X DELETE "https://profiausbau-chatbot-backend.onrender.com/api/cache" || true
