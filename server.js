@@ -14,7 +14,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
 
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
 
 const { Pool } = pg
 const pool = new Pool({
