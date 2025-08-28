@@ -18,7 +18,21 @@ jobs:
           node-version: 20
 
       - name: Install deps
-        run: npm install
+        run: |
+          npm ci || npm install
+          # sicherstellen, dass cheerio vorhanden ist:
+          npm ls cheerio || npm install cheerio
+
+      - name: Warm up Render (avoid cold start)
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://profiausbau-chatbot-backend.onrender.com/api/chat" \
+              -H "Content-Type: application/json" \
+              -d '{"message":"ping"}' || true)
+            echo "Attempt $i: HTTP $code"
+            [ "$code" = "200" ] && break
+            sleep 20
+          done
 
       - name: Run scraper
         env:
