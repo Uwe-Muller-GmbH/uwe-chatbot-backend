@@ -7,7 +7,8 @@ import fs from 'fs'
 
 const app = express()
 app.use('/frontend', express.static('frontend'))
-app.use('/public', express.static('public'))
+app.use('/', express.static('public'))
+
 
 // erlaubte Domains für Frontend
 const FRONTEND_ORIGINS = process.env.FRONTEND_ORIGINS
