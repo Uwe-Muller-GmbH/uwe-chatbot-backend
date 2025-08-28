@@ -1,10 +1,42 @@
 [
   {
-    "frage": "Was kostet eine Badrenovierung?",
-    "antwort": "Die Kosten h\u00e4ngen vom Zustand und Ihren W\u00fcnschen ab. Wir beraten Sie gern pers\u00f6nlich."
+    "frage": "Wo befindet sich die Uwe Müller GmbH?",
+    "antwort": "Sie finden uns in der Dürener Straße 589a, 52249 Eschweiler."
   },
   {
-    "frage": "\u00dcbernehmt ihr auch Trockenbau?",
-    "antwort": "Ja, Trockenbau geh\u00f6rt zu unseren Kernleistungen."
+    "frage": "Wie sind Ihre Öffnungszeiten?",
+    "antwort": "Wir sind Montag bis Freitag von 7:30 bis 17:00 Uhr für Sie da. Samstags nach Vereinbarung."
+  },
+  {
+    "frage": "Welche Leistungen bieten Sie an?",
+    "antwort": "Wir sind Händler und Vermieter von Baumaschinen und Deutschlands größter Händler von FUSO Nutzfahrzeugen."
+  },
+  {
+    "frage": "Wie erreiche ich den Kundenservice?",
+    "antwort": "Sie erreichen uns per E-Mail unter info@baumaschinen-mueller.de oder telefonisch unter +49 2403 997312."
+  },
+  {
+    "frage": "Wer ist der Geschäftsführer?",
+    "antwort": "Uwe Müller ist Geschäftsführer für Baumaschinen und Nutzfahrzeuge. Zusätzlich ist Dr. Philip Müller Geschäftsführer für Baumaschinen."
+  },
+  {
+    "frage": "Kann man bei Ihnen Baumaschinen mieten?",
+    "antwort": "Ja, wir vermieten verschiedene Baumaschinen. Bitte kontaktieren Sie uns für ein individuelles Angebot."
+  },
+  {
+    "frage": "Welche Marken von Nutzfahrzeugen führen Sie?",
+    "antwort": "Wir sind Deutschlands größter Händler für FUSO Nutzfahrzeuge."
+  },
+  {
+    "frage": "Bieten Sie auch Ersatzteile und Service an?",
+    "antwort": "Ja, wir bieten Ersatzteile und Werkstattservice für Baumaschinen und Nutzfahrzeuge an."
+  },
+  {
+    "frage": "Wie kann ich ein Angebot anfordern?",
+    "antwort": "Sie können uns telefonisch, per E-Mail oder über das Kontaktformular auf unserer Website erreichen, um ein Angebot zu erhalten."
+  },
+  {
+    "frage": "Haben Sie auch gebrauchte Maschinen im Angebot?",
+    "antwort": "Ja, neben Neumaschinen bieten wir auch gebrauchte Baumaschinen und Nutzfahrzeuge an."
   }
 ]
