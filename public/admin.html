@@ -84,6 +84,20 @@
   <script>
     const PASSWORD = '3092077236629566Ll';
 
+    // Default-FAQ (nur beim ersten Laden falls DB leer)
+    const DEFAULT_FAQ = [
+      { "frage": "Wo befindet sich die Uwe Müller GmbH?", "antwort": "Sie finden uns in der Dürener Straße 589a, 52249 Eschweiler." },
+      { "frage": "Wie sind Ihre Öffnungszeiten?", "antwort": "Wir sind Montag bis Freitag von 7:30 bis 17:00 Uhr für Sie da. Samstags nach Vereinbarung." },
+      { "frage": "Welche Leistungen bieten Sie an?", "antwort": "Wir sind Händler und Vermieter von Baumaschinen und Deutschlands größter Händler von FUSO Nutzfahrzeugen." },
+      { "frage": "Wie erreiche ich den Kundenservice?", "antwort": "Sie erreichen uns per E-Mail unter info@baumaschinen-mueller.de oder telefonisch unter +49 2403 997312." },
+      { "frage": "Wer ist der Geschäftsführer?", "antwort": "Uwe Müller ist Geschäftsführer für Baumaschinen und Nutzfahrzeuge. Zusätzlich ist Dr. Philip Müller Geschäftsführer für Baumaschinen." },
+      { "frage": "Kann man bei Ihnen Baumaschinen mieten?", "antwort": "Ja, wir vermieten verschiedene Baumaschinen. Bitte kontaktieren Sie uns für ein individuelles Angebot." },
+      { "frage": "Welche Marken von Nutzfahrzeugen führen Sie?", "antwort": "Wir sind Deutschlands größter Händler für FUSO Nutzfahrzeuge." },
+      { "frage": "Bieten Sie auch Ersatzteile und Service an?", "antwort": "Ja, wir bieten Ersatzteile und Werkstattservice für Baumaschinen und Nutzfahrzeuge an." },
+      { "frage": "Wie kann ich ein Angebot anfordern?", "antwort": "Sie können uns telefonisch, per E-Mail oder über das Kontaktformular auf unserer Website erreichen, um ein Angebot zu erhalten." },
+      { "frage": "Haben Sie auch gebrauchte Maschinen im Angebot?", "antwort": "Ja, neben Neumaschinen bieten wir auch gebrauchte Baumaschinen und Nutzfahrzeuge an." }
+    ];
+
     const saved = localStorage.getItem('admin_pass');
     if (saved === PASSWORD) {
       showAdminPanel();
@@ -126,9 +140,16 @@
       try {
         const res = await fetch('/api/faq');
         const json = await res.json();
-        document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
+        if (Array.isArray(json) && json.length > 0) {
+          document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
+        } else {
+          // Falls noch leer, Default setzen
+          document.getElementById('faq-content').value = JSON.stringify(DEFAULT_FAQ, null, 2);
+        }
       } catch (err) {
         document.getElementById('status').textContent = '❌ Fehler beim Laden der Daten!';
+        // Fallback: Default anzeigen
+        document.getElementById('faq-content').value = JSON.stringify(DEFAULT_FAQ, null, 2);
       }
     }
 
