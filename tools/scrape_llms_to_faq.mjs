@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import axios from "axios";
-import cheerio from "cheerio";
+import { load as cheerioLoad } from "cheerio";
 
 // ====== Konfiguration (über ENV übersteuerbar) ======
 const DEFAULT_LLMS = ["https://www.profiausbau.com/llms.txt"];
@@ -42,7 +42,7 @@ function cleanText(s) {
 }
 
 function extractQA(html, url) {
-  const $ = cheerio.load(html);
+  const $ = cheerioLoad(html);
   ["script", "style", "noscript", "iframe"].forEach(sel => $(sel).remove());
 
   const qas = [];
