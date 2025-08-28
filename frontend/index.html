@@ -1,0 +1,77 @@
+<!-- uwe-chatbot-backend/frontend/index.html -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Uwe Müller GmbH Chatbot</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="chat">
+    <div class="chatbot-header">
+      <span class="chatbot-title">
+        <img src="https://www.baumaschinen-mueller.de/sites/default/files/logo.png"
+             alt="Logo Uwe Müller GmbH"
+             style="height: 24px; vertical-align: middle; margin-right: 8px;">
+        KI-ChatBot
+      </span>
+      <button class="chatbot-close" onclick="closeChat()">✖</button>
+    </div>
+
+    <div id="messages">
+      <div class="msg bot">👋 Willkommen bei der Uwe Müller GmbH! Wie kann ich Ihnen helfen?</div>
+      <div id="loading-msg" class="msg bot" style="display:none;">
+        ⏳ Einen Moment bitte...
+      </div>
+    </div>
+
+    <div class="row">
+      <input type="text" id="input" placeholder="Ihre Frage..." />
+      <button onclick="send()">Senden</button>
+    </div>
+  </div>
+
+  <script>
+    async function send() {
+      const input = document.getElementById('input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      append('user', text);
+      document.getElementById('loading-msg').style.display = 'block';
+
+      try {
+        const res = await fetch('https://uwe-chatbot-backend.onrender.com/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+        document.getElementById('loading-msg').style.display = 'none';
+        append('bot', data.reply || '⚠️ Leider keine Antwort erhalten.');
+      } catch (err) {
+        document.getElementById('loading-msg').style.display = 'none';
+        append('bot', '❌ Verbindungsfehler.');
+      }
+    }
+
+    function append(role, text) {
+      const div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.textContent = text;
+      document.getElementById('messages').appendChild(div);
+      document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    }
+
+    function closeChat() {
+      window.parent.postMessage('chatbot-close', '*');
+    }
+
+    document.getElementById('input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') send();
+    });
+  </script>
+</body>
+</html>
