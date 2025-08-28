@@ -5,7 +5,7 @@ import cors from 'cors'
 import Fuse from 'fuse.js'
 
 const app = express()
-app.use(express.static('public'))
+app.use('/frontend', express.static('frontend'));
 
 // erlaubte Domains für Frontend (ENV steuert es)
 const FRONTEND_ORIGINS = process.env.FRONTEND_ORIGINS
