@@ -4,24 +4,14 @@
   <meta charset="UTF-8">
   <title>Uwe Müller GmbH Chatbot</title>
   <style>
-    * { box-sizing: border-box; }
-
-    body, html {
-      margin: 0; padding: 0;
-      width: 100%; height: 100%;
+    body {
       font-family: Arial, sans-serif;
-      background: #f8f9fa;
-      display: flex; flex-direction: column;
-    }
-
-    #chat {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-      background: #fff;
+      background: #f8f9fa;
     }
 
     .chatbot-header {
@@ -30,6 +20,7 @@
       padding: 10px 14px;
       display: flex;
       align-items: center;
+      border-radius: 12px 12px 0 0;
     }
 
     .chatbot-title {
@@ -38,19 +29,32 @@
       flex: 1;
       display: flex;
       align-items: center;
+      gap: 8px;
     }
 
     .chatbot-title img {
       height: 24px;
-      margin-right: 8px;
     }
 
     .chatbot-close {
       background: transparent;
-      color: white;
       border: none;
+      color: white;
       font-size: 20px;
       cursor: pointer;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
 
     #messages {
@@ -63,7 +67,6 @@
     }
 
     .msg {
-      display: inline-block;
       max-width: 75%;
       padding: 8px 12px;
       border-radius: 8px;
@@ -75,65 +78,72 @@
     .user {
       background-color: #d1e7dd;
       align-self: flex-end;
-      text-align: right;
     }
 
     .bot {
       background-color: #e2e3e5;
       align-self: flex-start;
-      text-align: left;
     }
 
     .row {
       display: flex;
       gap: 6px;
-      padding: 10px;
+      padding: 8px 10px;
       border-top: 1px solid #ccc;
-      background: #fff;
+      background: white;
     }
 
     #input {
       flex: 1;
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 6px;
+      padding: 10px;
+      font-size: 15px;
       border: 1px solid #ccc;
+      border-radius: 6px;
     }
 
-    button:not(.chatbot-close) {
-      padding: 12px 18px;
-      font-size: 16px;
-      background-color: #007CBA;
+    button.send-btn {
+      padding: 10px 18px;
+      font-size: 15px;
+      background: #007CBA;
       color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
     }
 
-    button:not(.chatbot-close):hover {
-      background-color: #005f99;
+    button.send-btn:hover {
+      background: #005f99;
+    }
+
+    @media (max-width: 600px) {
+      .row {
+        flex-direction: column;
+      }
+      button.send-btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
   <div id="chat">
     <div class="chatbot-header">
-      <span class="chatbot-title">
-        <img src="https://www.baumaschinen-mueller.de/sites/default/files/logo.png"
-             alt="Logo Uwe Müller GmbH">
-        Uwe Müller GmbH – KI-ChatBot
-      </span>
+      <div class="chatbot-title">
+        <img src="/sites/default/files/logo-uwe-mueller.png" alt="Logo">
+        KI-ChatBot
+      </div>
       <button class="chatbot-close" onclick="closeChat()">✖</button>
     </div>
 
     <div id="messages">
       <div class="msg bot">👋 Willkommen bei der Uwe Müller GmbH! Wie kann ich Ihnen helfen?</div>
-      <div id="loading-msg" class="msg bot" style="display:none;">⏳ Einen Moment bitte...</div>
     </div>
 
     <div class="row">
-      <input type="text" id="input" placeholder="Ihre Frage..." />
-      <button onclick="send()">Senden</button>
+      <input type="text" id="input" placeholder="Deine Frage...">
+      <button class="send-btn" onclick="send()">Senden</button>
     </div>
   </div>
 
@@ -142,10 +152,8 @@
       const input = document.getElementById('input');
       const text = input.value.trim();
       if (!text) return;
-
       input.value = '';
       append('user', text);
-      document.getElementById('loading-msg').style.display = 'block';
 
       try {
         const res = await fetch('https://uwe-chatbot-backend.onrender.com/api/chat', {
@@ -153,13 +161,11 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: text })
         });
-
         const data = await res.json();
-        document.getElementById('loading-msg').style.display = 'none';
         append('bot', data.reply || '⚠️ Leider keine Antwort erhalten.');
       } catch (err) {
-        document.getElementById('loading-msg').style.display = 'none';
         append('bot', '❌ Fehler beim Verbinden mit dem Server.');
+        console.error(err);
       }
     }
 
@@ -173,7 +179,10 @@
     }
 
     document.getElementById('input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') send();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        send();
+      }
     });
 
     function closeChat() {
