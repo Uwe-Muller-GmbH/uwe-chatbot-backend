@@ -21,6 +21,11 @@ const INCLUDE_PDFS = (process.env.INCLUDE_PDFS || "false").toLowerCase() === "tr
 const ALLOWED_DOMAINS = (process.env.ALLOWED_DOMAINS || "profiausbau.com,www.profiausbau.com")
   .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 
+// Keywords ausschließen (Datenschutz/Cookies)
+const SKIP_KEYWORDS = (process.env.SKIP_KEYWORDS || "datenschutz,cookie,cookies,privacy")
+  .split(",").map(s => s.trim()).filter(Boolean);
+const SKIP_RE = new RegExp(`\\b(${SKIP_KEYWORDS.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 function isAllowedUrl(u) {
@@ -32,12 +37,24 @@ function isAllowedUrl(u) {
   }
 }
 
+function normalizeUrl(u) {
+  // störende Zeichen am Ende entfernen + Fragment löschen
+  let x = String(u).replace(/[\),.\]\}]+$/, "");
+  try {
+    const url = new URL(x);
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return x;
+  }
+}
+
 async function fetchWithRetry(url, tries = 3) {
   for (let i = 0; i < tries; i++) {
     try {
       return await axios.get(url, {
         timeout: 20000,
-        headers: { "User-Agent": "profiausbau-scraper/1.1" }
+        headers: { "User-Agent": "profiausbau-scraper/1.2" }
       });
     } catch (e) {
       const code = e.response?.status;
@@ -132,15 +149,16 @@ async function loadLlmsUrls() {
 
   for (const src of LLMS_SOURCES) {
     const { data } = await fetchWithRetry(src);
-    const lines = String(data).split(/\r?\n/);
+    const raw = String(data);
 
-    for (let line of lines) {
-      line = line.trim();
-      if (!/^https?:\/\//i.test(line)) continue;           // nur Zeilen, die mit http(s) beginnen
-      line = line.replace(/[),.]+$/, "");                  // störende Abschlusszeichen entfernen
-      if (!isAllowedUrl(line)) continue;                   // nur erlaubte Domains
-      if (!INCLUDE_PDFS && line.toLowerCase().endsWith(".pdf")) continue;
-      all.add(line);
+    // finde ALLE URLs in der Datei, nicht nur am Zeilenanfang
+    const found = raw.match(/https?:\/\/[^\s<>")]+/g) || [];
+    for (let u of found) {
+      u = normalizeUrl(u);
+      if (!/^https?:\/\//i.test(u)) continue;
+      if (!isAllowedUrl(u)) continue;
+      if (!INCLUDE_PDFS && u.toLowerCase().endsWith(".pdf")) continue;
+      all.add(u);
     }
   }
 
@@ -174,14 +192,19 @@ async function run() {
 
   await Promise.all(workers);
 
+  // 1) Duplikate nach Frage entfernen
+  // 2) Mindestlänge beachten
+  // 3) Cookie/Datenschutz rausfiltern
   let faqs = uniqByQuestion(results)
-    .filter(x => x?.antwort && x.antwort.length >= MIN_ANSWER_LEN);
+    .filter(x => x?.antwort && x.antwort.length >= MIN_ANSWER_LEN)
+    .filter(x => !SKIP_RE.test(x.frage) && !SKIP_RE.test(x.antwort));
 
   // vorhandene faq.json sanft mergen (falls vorhanden)
   if (fs.existsSync(OUT_FILE)) {
     try {
       const before = JSON.parse(fs.readFileSync(OUT_FILE, "utf8"));
-      faqs = uniqByQuestion([...before, ...faqs]);
+      const merged = uniqByQuestion([...before, ...faqs]);
+      faqs = merged.filter(x => !SKIP_RE.test(x.frage) && !SKIP_RE.test(x.antwort));
     } catch {
       // ignore parse errors
     }
