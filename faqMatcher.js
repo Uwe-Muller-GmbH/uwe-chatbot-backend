@@ -1,7 +1,6 @@
 const Fuse = require('fuse.js')
 
-// TODO: Diese Daten kommen später aus Redis oder via Scraper.
-// Aktuell sind es Beispiel-FAQ-Einträge für die Uwe Müller GmbH.
+// Beispiel-FAQ-Einträge für die Uwe Müller GmbH
 const faqItems = [
   {
     question: "Wo befindet sich die Uwe Müller GmbH?",
@@ -23,6 +22,26 @@ const faqItems = [
     question: "Wer ist der Geschäftsführer?",
     answer: "Uwe Müller ist Geschäftsführer für Baumaschinen und Nutzfahrzeuge. Zusätzlich ist Dr. Philip Müller Geschäftsführer für Baumaschinen.",
   },
+  {
+    question: "Kann man bei Ihnen Baumaschinen mieten?",
+    answer: "Ja, wir vermieten verschiedene Baumaschinen. Bitte kontaktieren Sie uns für ein individuelles Angebot.",
+  },
+  {
+    question: "Welche Marken von Nutzfahrzeugen führen Sie?",
+    answer: "Wir sind Deutschlands größter Händler für FUSO Nutzfahrzeuge.",
+  },
+  {
+    question: "Bieten Sie auch Ersatzteile und Service an?",
+    answer: "Ja, wir bieten Ersatzteile und Werkstattservice für Baumaschinen und Nutzfahrzeuge an.",
+  },
+  {
+    question: "Wie kann ich ein Angebot anfordern?",
+    answer: "Sie können uns telefonisch, per E-Mail oder über das Kontaktformular auf unserer Website erreichen, um ein Angebot zu erhalten.",
+  },
+  {
+    question: "Haben Sie auch gebrauchte Maschinen im Angebot?",
+    answer: "Ja, neben Neumaschinen bieten wir auch gebrauchte Baumaschinen und Nutzfahrzeuge an.",
+  }
 ]
 
 const fuse = new Fuse(faqItems, {
