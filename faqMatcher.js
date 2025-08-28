@@ -1,33 +1,33 @@
-
 const Fuse = require('fuse.js')
 
-// TODO: Diese Daten aus eurer echten Datenbank laden
+// TODO: Diese Daten kommen später aus Redis oder via Scraper.
+// Aktuell sind es Beispiel-FAQ-Einträge für die Uwe Müller GmbH.
 const faqItems = [
   {
-    question: "Wie funktioniert die Rückgabe?",
-    answer: "Produkte können innerhalb von 14 Tagen zurückgegeben werden.",
+    question: "Wo befindet sich die Uwe Müller GmbH?",
+    answer: "Sie finden uns in der Dürener Straße 589a, 52249 Eschweiler.",
   },
   {
-    question: "Was kostet der Versand?",
-    answer: "Der Versand kostet pauschal 4,90 € innerhalb Deutschlands.",
+    question: "Wie sind Ihre Öffnungszeiten?",
+    answer: "Wir sind Montag bis Freitag von 7:30 bis 17:00 Uhr für Sie da. Samstags nach Vereinbarung.",
   },
   {
-    question: "Wie lange ist die Lieferzeit?",
-    answer: "Die Lieferzeit beträgt 2–4 Werktage nach Zahlungseingang.",
+    question: "Welche Leistungen bieten Sie an?",
+    answer: "Wir sind Händler und Vermieter von Baumaschinen und Deutschlands größter Händler von FUSO Nutzfahrzeugen.",
   },
   {
     question: "Wie erreiche ich den Kundenservice?",
-    answer: "Sie erreichen uns per E-Mail unter info@profiausbau.de oder telefonisch.",
+    answer: "Sie erreichen uns per E-Mail unter info@baumaschinen-mueller.de oder telefonisch unter +49 2403 997312.",
   },
   {
-    question: "Kann ich meine Bestellung stornieren?",
-    answer: "Ja, solange sie noch nicht versendet wurde.",
+    question: "Wer ist der Geschäftsführer?",
+    answer: "Uwe Müller ist Geschäftsführer für Baumaschinen und Nutzfahrzeuge. Zusätzlich ist Dr. Philip Müller Geschäftsführer für Baumaschinen.",
   },
 ]
 
 const fuse = new Fuse(faqItems, {
   keys: ['question'],
-  threshold: 0.3, // niedrig = strengere Übereinstimmung
+  threshold: 0.3, // niedriger Wert = strengere Übereinstimmung
 })
 
 function findBestAnswer(userQuestion) {
