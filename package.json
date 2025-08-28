@@ -1,7 +1,7 @@
 {
-  "name": "profiausbau-chatbot-backend",
+  "name": "uwe-chatbot-backend",
   "version": "1.0.0",
-  "description": "GPT-Backend für Profiausbau Aachen",
+  "description": "GPT-Backend für Uwe Müller GmbH",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -13,8 +13,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "pg": "^8.11.1",
-    "fuse.js": "^6.6.2",
-    "redis": "^4.6.7"
+    "fuse.js": "^6.6.2"
   }
 }
