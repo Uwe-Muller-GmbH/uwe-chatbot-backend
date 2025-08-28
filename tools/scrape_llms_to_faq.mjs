@@ -17,7 +17,20 @@ const MAX_FAQS = Number(process.env.MAX_FAQS || 1000);
 const OUT_FILE = process.env.OUT_FILE || path.join(process.cwd(), "faq.json");
 const INCLUDE_PDFS = (process.env.INCLUDE_PDFS || "false").toLowerCase() === "true";
 
+// Erlaubte Domains (nur von hier Inhalte ziehen)
+const ALLOWED_DOMAINS = (process.env.ALLOWED_DOMAINS || "profiausbau.com,www.profiausbau.com")
+  .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function isAllowedUrl(u) {
+  try {
+    const h = new URL(u).hostname.toLowerCase();
+    return ALLOWED_DOMAINS.some(d => h === d || h.endsWith("." + d));
+  } catch {
+    return false;
+  }
+}
 
 async function fetchWithRetry(url, tries = 3) {
   for (let i = 0; i < tries; i++) {
@@ -50,6 +63,9 @@ function isHeaderNode(node) {
 }
 
 function extractQA(html, url) {
+  // Sicherheitsnetz: falls URL nicht erlaubt, nichts extrahieren
+  if (!isAllowedUrl(url)) return [];
+
   const $ = cheerioLoad(html);
   ["script", "style", "noscript", "iframe"].forEach(sel => $(sel).remove());
 
@@ -113,12 +129,21 @@ function uniqByQuestion(arr) {
 
 async function loadLlmsUrls() {
   const all = new Set();
+
   for (const src of LLMS_SOURCES) {
     const { data } = await fetchWithRetry(src);
-    const urls = (String(data).match(/https?:\/\/[^\s]+/g) || [])
-      .filter(u => INCLUDE_PDFS || !u.toLowerCase().endsWith(".pdf"));
-    urls.forEach(u => all.add(u));
+    const lines = String(data).split(/\r?\n/);
+
+    for (let line of lines) {
+      line = line.trim();
+      if (!/^https?:\/\//i.test(line)) continue;           // nur Zeilen, die mit http(s) beginnen
+      line = line.replace(/[),.]+$/, "");                  // störende Abschlusszeichen entfernen
+      if (!isAllowedUrl(line)) continue;                   // nur erlaubte Domains
+      if (!INCLUDE_PDFS && line.toLowerCase().endsWith(".pdf")) continue;
+      all.add(line);
+    }
   }
+
   return [...all].slice(0, MAX_FAQS);
 }
 
@@ -163,9 +188,48 @@ async function run() {
   }
 
   if (BACKEND_URL) {
-    console.log(`☁️  Pushe ${faqs.length} FAQs an Backend: ${BACKEND_URL}`);
-    await axios.post(BACKEND_URL, faqs, { headers: { "Content-Type": "application/json" } });
-    console.log("🚀 Done (Backend Push)");
+    const base = BACKEND_URL.replace(/\/api\/faq\/?$/, "");
+    console.log(`☁️  Pushe ${faqs.length} FAQs an Backend (Bulk mit 413-Fallback): ${BACKEND_URL}`);
+
+    try {
+      // Versuch: alles auf einmal (wenn Server großes JSON akzeptiert)
+      await axios.post(BACKEND_URL, faqs, { headers: { "Content-Type": "application/json" } });
+      console.log("🚀 Done (Bulk Push)");
+    } catch (e) {
+      if (e.response?.status === 413) {
+        // Fallback: einzeln über /api/faq-add-single posten
+        const singleUrl = `${base}/api/faq-add-single`;
+        console.warn(`⚠️  413 erhalten — wechsle auf Single-Push: ${singleUrl}`);
+
+        const CONC = 4; // kleine Parallelität
+        let idx = 0, ok = 0, fail = 0;
+
+        const postOne = async (item) => {
+          try {
+            await axios.post(singleUrl, item, { headers: { "Content-Type": "application/json" } });
+            ok++;
+          } catch (err) {
+            fail++;
+            console.warn("❌ Single push failed:",
+              item.frage?.slice(0, 80) || "?",
+              err.response?.status || err.message);
+          }
+        };
+
+        const workers = Array.from({ length: CONC }, async () => {
+          while (idx < faqs.length) {
+            const i = idx++;
+            await postOne(faqs[i]);
+            await sleep(80); // rate limit
+          }
+        });
+
+        await Promise.all(workers);
+        console.log(`✅ Single-Push fertig: ok=${ok}, fail=${fail}`);
+      } else {
+        throw e;
+      }
+    }
   } else {
     fs.writeFileSync(OUT_FILE, JSON.stringify(faqs, null, 2), "utf8");
     console.log(`💾 faq.json gespeichert: ${OUT_FILE}  (Einträge: ${faqs.length})`);
