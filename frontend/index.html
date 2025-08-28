@@ -185,18 +185,20 @@
   }
 
   function append(role, text, returnElem = false) {
-    const messagesContainer = document.getElementById('messages');
-    const div = document.createElement('div');
-    div.className = 'msg ' + role;
-    div.textContent = text;
-    messagesContainer.appendChild(div);
+  const messagesContainer = document.getElementById('messages');
 
-    setTimeout(() => {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }, 0);
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
 
-    return returnElem ? div : null;
-  }
+  messagesContainer.appendChild(div);
+
+  // Automatisch zum Ende scrollen
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  // Für Lade-Message: Referenz zurückgeben
+  return returnElem ? div : null;
+}
 
   document.getElementById('input').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
