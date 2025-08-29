@@ -16,19 +16,19 @@ async function run() {
     const res = await axios.get(url);
     const lines = res.data.split("\n");
 
-    let currentTitle = null;
+    let currentFrage = null;
     let currentContent = [];
 
     for (const line of lines) {
       if (line.startsWith("### ")) {
-        // wenn es schon einen Eintrag gibt, speichern
-        if (currentTitle && currentContent.length) {
+        // vorherigen Block speichern
+        if (currentFrage && currentContent.length) {
           allFaqs.push({
-            frage: `Informationen zu ${currentTitle}`,
+            frage: currentFrage,
             antwort: currentContent.join(" ").substring(0, 400) + "..."
           });
         }
-        currentTitle = line.replace("### ", "").trim();
+        currentFrage = line.replace("### ", "").trim();
         currentContent = [];
       } else if (!line.startsWith("URL:") && line.trim()) {
         currentContent.push(line.trim());
@@ -36,9 +36,9 @@ async function run() {
     }
 
     // letzten Block speichern
-    if (currentTitle && currentContent.length) {
+    if (currentFrage && currentContent.length) {
       allFaqs.push({
-        frage: `Informationen zu ${currentTitle}`,
+        frage: currentFrage,
         antwort: currentContent.join(" ").substring(0, 400) + "..."
       });
     }
