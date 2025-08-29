@@ -36,6 +36,12 @@
       margin-top: 30px;
     }
     #logout-button:hover { background: #666; }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -55,9 +61,17 @@
     <button onclick="saveFAQ()">💾 Speichern</button>
     <button id="clear-cache-btn">🧹 Cache löschen</button>
     <p id="status" style="color: green;"></p>
+
+    <hr>
+    <h2>🔎 Test-Suche mit Score</h2>
+    <input type="text" id="test-query" placeholder="Suchbegriff eingeben..." style="width:100%;padding:8px;">
+    <button onclick="runTestSearch()">Suchen</button>
+    <pre id="test-result"></pre>
+
     <button id="logout-button" onclick="logout()">🚪 Logout</button>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
   <script>
     const PASSWORD = '3092077236629566Ll';
 
@@ -140,6 +154,41 @@
         status.textContent = '❌ Verbindung fehlgeschlagen.';
       }
     });
+
+    async function runTestSearch() {
+      const query = document.getElementById('test-query').value.trim();
+      if (!query) return;
+
+      const allFaqs = JSON.parse(document.getElementById('faq-content').value || '[]');
+      const fuse = new Fuse(allFaqs, {
+        keys: ['frage'],
+        threshold: 0.5,
+        distance: 100,
+        minMatchCharLength: 2,
+        includeScore: true
+      });
+
+      const results = fuse.search(query);
+      let output = '';
+
+      if (results.length) {
+        output += '✅ FAQ-Treffer:\n\n';
+        results.slice(0, 5).forEach(r => {
+          output += `Frage: ${r.item.frage}\nScore: ${r.score.toFixed(3)}\nAntwort: ${r.item.antwort}\n\n`;
+        });
+      } else {
+        // GPT-Fallback testen
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: query })
+        });
+        const data = await res.json();
+        output = '❌ Kein FAQ-Treffer.\nGPT-Antwort:\n' + data.reply;
+      }
+
+      document.getElementById('test-result').textContent = output;
+    }
 
     // Warm-up
     window.addEventListener('load', function () {
