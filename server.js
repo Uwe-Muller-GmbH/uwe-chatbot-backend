@@ -10,14 +10,10 @@ const app = express()
 app.use(express.json())
 app.use(cors())
 
-// === Pfad zu frontend ermitteln ===
+// __dirname nachbauen (wegen ES-Modules)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Frontend statisch ausliefern
-app.use(express.static(path.join(__dirname, 'frontend')))
-
-// API bleibt wie gehabt ...
 const FAQ_FILE = './faq.json'
 let fuse = null
 
@@ -33,9 +29,18 @@ function loadFaqData() {
   return []
 }
 
+// === Chat Endpoint ===
+const greetings = ["hi", "hallo", "hey", "guten tag", "moin", "servus"]
+
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
-  if (message === 'ping') return res.json({ reply: 'pong' })
+  const normalized = message.toLowerCase().trim()
+
+  if (greetings.includes(normalized)) {
+    return res.json({
+      reply: "👋 Hallo! Wie kann ich Ihnen helfen?"
+    })
+  }
 
   const faqData = loadFaqData()
   if (faqData.length) {
@@ -53,7 +58,7 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
-  // GPT-Fallback (wie gehabt) ...
+  // === GPT Fallback ===
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -90,16 +95,66 @@ Wenn du keine Infos hast, verweise höflich auf Kontakt:
   }
 })
 
+// === FAQ API ===
 app.get('/api/faq', (req, res) => {
   const data = loadFaqData()
   res.json(data)
 })
 
-// Catch-All: index.html zurückgeben
+app.post('/api/faq', (req, res) => {
+  try {
+    fs.writeFileSync(FAQ_FILE, JSON.stringify(req.body, null, 2), 'utf8')
+    fuse = null // Cache leeren
+    res.json({ success: true })
+  } catch (err) {
+    console.error("❌ Fehler beim Speichern von FAQ:", err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// Einzelne FAQ hinzufügen
+app.post('/api/faq-add-single', (req, res) => {
+  try {
+    const { frage, antwort } = req.body
+    if (!frage || !antwort) {
+      return res.status(400).json({ success: false, error: "Frage oder Antwort fehlt" })
+    }
+
+    const data = loadFaqData()
+    data.push({ frage, antwort })
+    fs.writeFileSync(FAQ_FILE, JSON.stringify(data, null, 2), 'utf8')
+    fuse = null
+    res.json({ success: true })
+  } catch (err) {
+    console.error("❌ Fehler beim Hinzufügen:", err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// Cache löschen
+app.delete('/api/cache', (req, res) => {
+  fuse = null
+  res.json({ success: true })
+})
+
+// === Frontend ===
+app.use(express.static(path.join(__dirname, 'frontend')))
+
+// Chatbot-Seite
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
+})
+
+// Admin-Seite
+app.get('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'admin.html'))
+})
+
+// Catch-All
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
 })
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log('✅ Chatbot läuft mit Frontend + FAQ + GPT-Fallback auf Port 3000')
+  console.log('✅ Chatbot + Admin läuft auf Port 3000')
 })
