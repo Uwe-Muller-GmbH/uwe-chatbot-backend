@@ -1,14 +1,13 @@
+import fs from "fs";
+import path from "path";
 
-// FAQ API-Endpunkte
-import fs from 'fs';
-import path from 'path';
-
-app.get('/api/faq', (req, res) => {
-  const data = fs.readFileSync(path.resolve('faq.json'), 'utf-8');
-  res.json(JSON.parse(data));
-});
-
-app.post('/api/faq', (req, res) => {
-  fs.writeFileSync(path.resolve('faq.json'), JSON.stringify(req.body, null, 2));
-  res.json({ success: true });
+app.get("/api/faq", (req, res) => {
+  try {
+    const filePath = path.resolve("faq.json");
+    const data = fs.readFileSync(filePath, "utf-8");
+    res.json(JSON.parse(data));
+  } catch (err) {
+    console.error("❌ Fehler beim Lesen von faq.json:", err.message);
+    res.status(500).json({ error: "FAQ konnte nicht geladen werden" });
+  }
 });
