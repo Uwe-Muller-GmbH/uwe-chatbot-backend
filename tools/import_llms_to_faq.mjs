@@ -28,7 +28,12 @@ async function run() {
             antwort: currentContent.join(" ").substring(0, 400) + "..."
           });
         }
-        currentFrage = line.replace("### ", "").trim();
+
+        // Titel bereinigen → Nummern + Punkt am Anfang entfernen
+        let rawTitle = line.replace("### ", "").trim();
+        let cleanedTitle = rawTitle.replace(/^\d+\.\s*/, ""); // entfernt "38. ", "2. " usw.
+
+        currentFrage = cleanedTitle;
         currentContent = [];
       } else if (!line.startsWith("URL:") && line.trim()) {
         currentContent.push(line.trim());
@@ -86,3 +91,4 @@ async function run() {
 }
 
 run();
+
