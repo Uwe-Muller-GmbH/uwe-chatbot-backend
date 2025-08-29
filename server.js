@@ -7,10 +7,16 @@ import axios from 'axios'
 
 const app = express()
 app.use(express.json())
+app.use(cors())
+
+// Statische Dateien (Frontend & Admin)
+app.use('/', express.static('public'))
+app.use('/frontend', express.static('frontend'))
 
 const FAQ_FILE = './faq.json'
 let fuse = null
 
+// === Hilfsfunktionen ===
 function loadFaqData() {
   try {
     if (fs.existsSync(FAQ_FILE)) {
@@ -23,13 +29,26 @@ function loadFaqData() {
   return []
 }
 
+function saveFaqData(faqs) {
+  try {
+    fs.writeFileSync(FAQ_FILE, JSON.stringify(faqs, null, 2), 'utf8')
+    return true
+  } catch (err) {
+    console.error('❌ Fehler beim Schreiben von faq.json:', err.message)
+    return false
+  }
+}
+
+// === API ===
+
+// Chat mit FAQ + GPT-Fallback
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
   if (message === 'ping') return res.json({ reply: 'pong' })
 
   const faqData = loadFaqData()
   if (faqData.length) {
-    if (!fuse || fuse._docs.length !== faqData.length) {
+    if (!fuse || !fuse._docs || fuse._docs.length !== faqData.length) {
       fuse = new Fuse(faqData, {
         keys: ['frage'],
         threshold: 0.5,
@@ -43,7 +62,7 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
-  // === GPT Fallback ===
+  // GPT-Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -80,11 +99,30 @@ Wenn du keine Infos hast, verweise höflich auf Kontakt:
   }
 })
 
+// FAQs laden
 app.get('/api/faq', (req, res) => {
   const data = loadFaqData()
   res.json(data)
 })
 
+// FAQs speichern
+app.post('/api/faq', (req, res) => {
+  const faqs = req.body
+  if (!Array.isArray(faqs)) {
+    return res.status(400).json({ error: 'Datenformat ungültig' })
+  }
+  const success = saveFaqData(faqs)
+  fuse = null
+  res.json({ success })
+})
+
+// Cache löschen (nur Fuse-Cache hier)
+app.delete('/api/cache', (req, res) => {
+  fuse = null
+  res.json({ success: true, message: 'Cache gelöscht' })
+})
+
+// === Server starten ===
 app.listen(process.env.PORT || 3000, () => {
-  console.log('✅ Chatbot läuft mit FAQ + GPT-Fallback auf Port 3000')
+  console.log('✅ Uwe Müller Chatbot läuft auf Port 3000 mit Admin & FAQ')
 })
