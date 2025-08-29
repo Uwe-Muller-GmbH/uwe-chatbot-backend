@@ -13,7 +13,7 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          persist-credentials: true   # wichtig, damit wir zurückpushen können
+          token: ${{ secrets.GH_PAT }}   # Dein Personal Access Token
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,11 +22,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install axios
+          npm install
 
       - name: Run LLMS Import Script
         env:
           LLMS_SOURCES: "https://www.baumaschinen-mueller.de/llms.txt,https://www.baumaschinen-mueller.de/llms-full.txt"
+          BACKEND_URL: ""   # leer, weil wir direkt in faq.json speichern
         run: node tools/import_llms_to_faq.mjs
 
       - name: Commit & Push updated faq.json
@@ -34,5 +35,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add faq.json
-          git commit -m "🔄 Update faq.json from LLMS import" || echo "No changes to commit"
+          git diff --cached --quiet || git commit -m "🔄 Update faq.json from LLMS import"
           git push
