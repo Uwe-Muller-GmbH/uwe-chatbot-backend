@@ -15,6 +15,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const FAQ_FILE = './faq.json'
+const CATALOG_FILE = './catalog.json'
 let fuse = null
 
 function loadFaqData() {
@@ -25,6 +26,18 @@ function loadFaqData() {
     }
   } catch (err) {
     console.error('❌ Fehler beim Lesen von faq.json:', err.message)
+  }
+  return []
+}
+
+function loadCatalogData() {
+  try {
+    if (fs.existsSync(CATALOG_FILE)) {
+      const content = fs.readFileSync(path.resolve(CATALOG_FILE), 'utf8')
+      return JSON.parse(content)
+    }
+  } catch (err) {
+    console.error('❌ Fehler beim Lesen von catalog.json:', err.message)
   }
   return []
 }
@@ -57,7 +70,7 @@ app.post('/api/chat', async (req, res) => {
     if (!fuse || fuse._docs.length !== faqData.length) {
       fuse = new Fuse(faqData, {
         keys: ['frage'],
-        threshold: 0.3, // enger machen!
+        threshold: 0.3, // enger machen
         distance: 80,
         minMatchCharLength: 2
       })
@@ -140,9 +153,16 @@ app.post('/api/faq-add-single', (req, res) => {
   }
 })
 
+// Cache löschen
 app.delete('/api/cache', (req, res) => {
   fuse = null
   res.json({ success: true })
+})
+
+// === Catalog API ===
+app.get('/api/catalog', (req, res) => {
+  const data = loadCatalogData()
+  res.json(data)
 })
 
 // === Frontend & Admin ===
@@ -157,10 +177,11 @@ app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'))
 })
 
+// Catch-All → Chatbot
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
 })
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log('✅ Chatbot + Admin läuft auf Port 3000')
+  console.log('✅ Chatbot + Admin + Catalog läuft auf Port 3000')
 })
