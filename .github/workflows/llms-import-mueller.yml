@@ -28,13 +28,12 @@ jobs:
       - name: Run LLMS Import Script
         env:
           LLMS_SOURCES: "https://www.baumaschinen-mueller.de/llms.txt,https://www.baumaschinen-mueller.de/llms-full.txt"
-          BACKEND_URL: ""   # leer, wir speichern direkt faq.json
-        run: node tools/import_llms_to_faq.mjs
+        run: node importFaqs.js   # neues Script erzeugt faq.json + catalog.json
 
-      - name: Commit & Push updated faq.json
+      - name: Commit & Push updated faq.json + catalog.json
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add faq.json
-          git diff --cached --quiet || git commit -m "🔄 Update faq.json from LLMS import"
+          git add faq.json catalog.json
+          git diff --cached --quiet || git commit -m "🔄 Update faq.json & catalog.json from LLMS import"
           git push origin main
