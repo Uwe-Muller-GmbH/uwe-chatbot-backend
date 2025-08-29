@@ -137,8 +137,9 @@ app.delete('/api/cache', (req, res) => {
   res.json({ success: true })
 })
 
-// === Frontend ===
+// === Frontend & Admin statisch ausliefern ===
 app.use(express.static(path.join(__dirname, 'frontend')))
+app.use(express.static(path.join(__dirname, 'public')))
 
 // Chatbot-Seite
 app.get('/', (req, res) => {
@@ -147,10 +148,10 @@ app.get('/', (req, res) => {
 
 // Admin-Seite
 app.get('/admin.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'admin.html'))
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'))
 })
 
-// Catch-All
+// Catch-All (alle unbekannten Routen → Chatbot)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
 })
