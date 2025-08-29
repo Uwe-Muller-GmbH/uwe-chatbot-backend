@@ -3,15 +3,14 @@ import cors from 'cors'
 import fs from 'fs'
 import path from 'path'
 import Fuse from 'fuse.js'
+import axios from 'axios'
 
 const app = express()
 app.use(express.json())
 
-// FAQ-Datei (immer lokal)
 const FAQ_FILE = './faq.json'
 let fuse = null
 
-// Hilfsfunktion: FAQs laden
 function loadFaqData() {
   try {
     if (fs.existsSync(FAQ_FILE)) {
@@ -24,10 +23,7 @@ function loadFaqData() {
   return []
 }
 
-// === API Endpunkte ===
-
-// Chat mit FAQ-Suche
-app.post('/api/chat', (req, res) => {
+app.post('/api/chat', async (req, res) => {
   const { message } = req.body
   if (message === 'ping') return res.json({ reply: 'pong' })
 
@@ -47,17 +43,48 @@ app.post('/api/chat', (req, res) => {
     }
   }
 
-  // Keine Treffer → Standardantwort
-  res.json({ reply: "Ich konnte dazu leider nichts finden. Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de 📞 +49 2403 997312" })
+  // === GPT Fallback ===
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Du bist der digitale Assistent der Uwe Müller GmbH (Baumaschinen Müller).
+Antworten: professionell, freundlich, kurz und informativ.
+Nutze bekannte Inhalte, keine Spekulationen.
+Wenn du keine Infos hast, verweise höflich auf Kontakt:
+📧 info@baumaschinen-mueller.de
+📞 +49 2403 997312`
+          },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.6,
+        max_tokens: 800
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    const reply = response.data.choices?.[0]?.message?.content
+    res.json({ reply: reply || "Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de" })
+  } catch (err) {
+    console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message)
+    res.json({ reply: "Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de" })
+  }
 })
 
-// FAQs ausliefern
 app.get('/api/faq', (req, res) => {
   const data = loadFaqData()
   res.json(data)
 })
 
-// Server starten
 app.listen(process.env.PORT || 3000, () => {
-  console.log('✅ Chatbot läuft mit lokaler faq.json auf Port 3000')
+  console.log('✅ Chatbot läuft mit FAQ + GPT-Fallback auf Port 3000')
 })
