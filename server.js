@@ -31,24 +31,34 @@ function loadFaqData() {
 
 // === Chat Endpoint ===
 const greetings = ["hi", "hallo", "hey", "guten tag", "moin", "servus"]
+const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "lader", "kran", "walze"]
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
   const normalized = message.toLowerCase().trim()
 
+  // Begrüßung
   if (greetings.includes(normalized)) {
     return res.json({
       reply: "👋 Hallo! Wie kann ich Ihnen helfen?"
     })
   }
 
+  // Maschinen-Anfragen abfangen
+  if (machineKeywords.some(k => normalized.includes(k))) {
+    return res.json({
+      reply: "🚜 Wir haben viele Maschinen im Angebot. Bitte melden Sie sich direkt:\n📧 info@baumaschinen-mueller.de\n📞 +49 2403 997312"
+    })
+  }
+
+  // FAQ prüfen
   const faqData = loadFaqData()
   if (faqData.length) {
     if (!fuse || fuse._docs.length !== faqData.length) {
       fuse = new Fuse(faqData, {
         keys: ['frage'],
-        threshold: 0.5,
-        distance: 100,
+        threshold: 0.3, // enger machen!
+        distance: 80,
         minMatchCharLength: 2
       })
     }
@@ -58,7 +68,7 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
-  // === GPT Fallback ===
+  // GPT Fallback
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -77,7 +87,7 @@ Wenn du keine Infos hast, verweise höflich auf Kontakt:
           { role: 'user', content: message }
         ],
         temperature: 0.6,
-        max_tokens: 800
+        max_tokens: 500
       },
       {
         headers: {
@@ -88,10 +98,10 @@ Wenn du keine Infos hast, verweise höflich auf Kontakt:
     )
 
     const reply = response.data.choices?.[0]?.message?.content
-    res.json({ reply: reply || "Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de" })
+    res.json({ reply: reply || "Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de 📞 +49 2403 997312" })
   } catch (err) {
     console.error('❌ Fehler bei OpenAI:', err.response?.data || err.message)
-    res.json({ reply: "Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de" })
+    res.json({ reply: "Bitte kontaktieren Sie uns direkt 📧 info@baumaschinen-mueller.de 📞 +49 2403 997312" })
   }
 })
 
