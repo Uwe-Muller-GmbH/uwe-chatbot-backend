@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci || npm install
-          # sicherstellen, dass axios installiert ist
+          npm ls cheerio || npm install cheerio
           npm ls axios || npm install axios
 
       - name: Warm up Backend (avoid cold start)
@@ -36,6 +36,9 @@ jobs:
           done
 
       - name: Run LLMS Import Script
+        env:
+          LLMS_SOURCES: "https://www.baumaschinen-mueller.de/llms.txt,https://www.baumaschinen-mueller.de/llms-full.txt"
+          BACKEND_URL: "https://uwe-chatbot-backend.onrender.com/api/faq"
         run: node tools/import_llms_to_faq.mjs
 
       - name: Clear Bot Cache (optional)
