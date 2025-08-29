@@ -14,29 +14,36 @@ async function run() {
 
   for (const url of LLMS_URLS) {
     const res = await axios.get(url);
-    const chunks = res.data
-      .split("\n\n")
-      .map(c => c.trim())
-      .filter(Boolean);
+    const lines = res.data.split("\n");
 
-    const qas = chunks.map((chunk, i) => {
-      let lines = chunk.split("\n").map(l => l.trim()).filter(Boolean);
-      let frage = lines[0] || `Info #${i}`;
-      let antwort = lines.slice(1).join(" ").trim();
+    let currentTitle = null;
+    let currentContent = [];
 
-      // Nummerierung am Anfang entfernen (z.B. "1500. ")
-      frage = frage.replace(/^\d+\.\s*/, "");
-
-      // Fallback, falls kein Antworttext da
-      if (!antwort) {
-        antwort = chunk;
+    for (const line of lines) {
+      if (line.startsWith("### ")) {
+        // wenn es schon einen Eintrag gibt, speichern
+        if (currentTitle && currentContent.length) {
+          allFaqs.push({
+            frage: `Informationen zu ${currentTitle}`,
+            antwort: currentContent.join(" ").substring(0, 400) + "..."
+          });
+        }
+        currentTitle = line.replace("### ", "").trim();
+        currentContent = [];
+      } else if (!line.startsWith("URL:") && line.trim()) {
+        currentContent.push(line.trim());
       }
+    }
 
-      return { frage, antwort };
-    });
+    // letzten Block speichern
+    if (currentTitle && currentContent.length) {
+      allFaqs.push({
+        frage: `Informationen zu ${currentTitle}`,
+        antwort: currentContent.join(" ").substring(0, 400) + "..."
+      });
+    }
 
-    console.log(`✅ ${qas.length} FAQs extrahiert von ${url}`);
-    allFaqs.push(...qas);
+    console.log(`✅ ${allFaqs.length} FAQs extrahiert von ${url}`);
   }
 
   console.log(`📄 Gesamt: ${allFaqs.length} FAQs`);
