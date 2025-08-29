@@ -30,15 +30,15 @@ function loadFaqData() {
 }
 
 // === Chat Endpoint ===
-const greetings = ["hi", "hallo", "hey", "guten tag", "moin", "servus"]
-const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "lader", "kran", "walze"]
+const greetings = ["hi", "hallo", "hey", "guten tag", "moin", "servus", "danke", "vielen dank"]
+const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "maschinen", "lader", "komatsu", "caterpillar", "volvo", "jcb", "kubota", "motor"]
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
   const normalized = message.toLowerCase().trim()
 
   // Begrüßung
-  if (greetings.includes(normalized)) {
+  if (greetings.some(g => normalized === g)) {
     return res.json({
       reply: "👋 Hallo! Wie kann ich Ihnen helfen?"
     })
@@ -68,7 +68,7 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
-  // GPT Fallback
+  // === GPT Fallback ===
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -79,10 +79,10 @@ app.post('/api/chat', async (req, res) => {
             role: 'system',
             content: `Du bist der digitale Assistent der Uwe Müller GmbH (Baumaschinen Müller).
 Antworten: professionell, freundlich, kurz und informativ.
-Nutze bekannte Inhalte, keine Spekulationen.
-Wenn du keine Infos hast, verweise höflich auf Kontakt:
+Wenn es um Maschinen geht, verweise IMMER auf den direkten Kontakt:
 📧 info@baumaschinen-mueller.de
-📞 +49 2403 997312`
+📞 +49 2403 997312
+Wenn du keine Infos hast, ebenfalls Kontakt angeben.`
           },
           { role: 'user', content: message }
         ],
@@ -122,7 +122,6 @@ app.post('/api/faq', (req, res) => {
   }
 })
 
-// Einzelne FAQ hinzufügen
 app.post('/api/faq-add-single', (req, res) => {
   try {
     const { frage, antwort } = req.body
@@ -141,27 +140,23 @@ app.post('/api/faq-add-single', (req, res) => {
   }
 })
 
-// Cache löschen
 app.delete('/api/cache', (req, res) => {
   fuse = null
   res.json({ success: true })
 })
 
-// === Frontend & Admin statisch ausliefern ===
+// === Frontend & Admin ===
 app.use(express.static(path.join(__dirname, 'frontend')))
 app.use(express.static(path.join(__dirname, 'public')))
 
-// Chatbot-Seite
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
 })
 
-// Admin-Seite
 app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'))
 })
 
-// Catch-All (alle unbekannten Routen → Chatbot)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
 })
