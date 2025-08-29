@@ -1,35 +1,76 @@
 import axios from "axios";
-import fs from "fs";
 
-// load from llms.txt
-const LLMS_URLS = (process.env.LLMS_SOURCES || "").split(",").filter(Boolean);
-const BACKEND_URL = process.env.BACKEND_URL;
+// ==== Konfiguration ====
+// Quelle(n) für LLMS-Dateien (Komma-separiert in GitHub Action setzen)
+const LLMS_URLS = (process.env.LLMS_SOURCES || "https://www.baumaschinen-mueller.de/llms.txt")
+  .split(",")
+  .filter(Boolean);
+
+const BACKEND_URL = process.env.BACKEND_URL || "https://uwe-chatbot-backend.onrender.com/api/faq";
+
+// =======================
+
+// Funktion: LLMS-Datei parsen → [{frage, antwort}]
+function parseLlmsText(data) {
+  const lines = data.split("\n");
+  const faqs = [];
+  let currentFrage = null;
+  let currentAntwort = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Neue Frage beginnt bei "##"
+    if (trimmed.startsWith("##")) {
+      if (currentFrage && currentAntwort.length) {
+        faqs.push({
+          frage: currentFrage,
+          antwort: currentAntwort.join(" ").trim(),
+        });
+      }
+      currentFrage = trimmed.replace(/^##+\s*/, ""); // "## " entfernen
+      currentAntwort = [];
+    } else if (trimmed) {
+      currentAntwort.push(trimmed);
+    }
+  }
+
+  // letzte Frage sichern
+  if (currentFrage && currentAntwort.length) {
+    faqs.push({
+      frage: currentFrage,
+      antwort: currentAntwort.join(" ").trim(),
+    });
+  }
+
+  return faqs;
+}
 
 async function run() {
   console.log("🔎 Lade LLMS:", LLMS_URLS.join(", "));
   let allFaqs = [];
 
   for (const url of LLMS_URLS) {
-    const res = await axios.get(url);
-    // Hier parse deine QAs raus (wie vorher) – Platzhalter:
-    const qas = res.data.split("\n\n").map((chunk, i) => ({
-      frage: `Info #${i}`,
-      antwort: chunk.trim()
-    }));
-    allFaqs.push(...qas);
+    try {
+      const res = await axios.get(url);
+      const qas = parseLlmsText(res.data);
+      console.log(`✅ ${qas.length} FAQs extrahiert von ${url}`);
+      allFaqs.push(...qas);
+    } catch (err) {
+      console.error(`❌ Fehler beim Laden von ${url}:`, err.message);
+    }
   }
 
-  console.log(`📄 ${allFaqs.length} FAQs extrahiert.`);
+  console.log(`📄 Gesamt: ${allFaqs.length} FAQs`);
 
+  // ========== Upload ==========
   try {
-    // Versuch: alles in einem Schwung
     await axios.post(BACKEND_URL, allFaqs, { headers: { "Content-Type": "application/json" } });
     console.log("✅ Alles auf einmal importiert.");
   } catch (err) {
     if (err.response?.status === 413) {
       console.warn("⚠️ Payload zu groß – wechsle auf Batches…");
 
-      // in Blöcke von 50 FAQs aufteilen
       const batchSize = 50;
       for (let i = 0; i < allFaqs.length; i += batchSize) {
         const batch = allFaqs.slice(i, i + batchSize);
@@ -46,4 +87,7 @@ async function run() {
   }
 }
 
-run();
+run().catch((err) => {
+  console.error("❌ Script-Fehler:", err);
+  process.exit(1);
+});
