@@ -1,58 +1,49 @@
 import axios from "axios";
+import fs from "fs";
 
-const LLMS_URL = "https://www.baumaschinen-mueller.de/llms.txt";
-const BACKEND_URL = "https://uwe-chatbot-backend.onrender.com/api/faq";
+// load from llms.txt
+const LLMS_URLS = (process.env.LLMS_SOURCES || "").split(",").filter(Boolean);
+const BACKEND_URL = process.env.BACKEND_URL;
 
-async function fetchLLMS() {
-  const res = await axios.get(LLMS_URL);
-  return res.data.split("\n");
-}
+async function run() {
+  console.log("🔎 Lade LLMS:", LLMS_URLS.join(", "));
+  let allFaqs = [];
 
-function parseLLMS(lines) {
-  const faqs = [];
-  let current = null;
-
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) continue;
-
-    // 1) Neue Frage mit Link
-    const match = line.match(/^\d+\.\s+\[(.+?)\]\((https?:\/\/[^\)]+)\)/);
-    if (match) {
-      if (current) faqs.push(current); // vorherige speichern
-      current = { frage: match[1], antwort: "Mehr Infos: " + match[2] };
-      continue;
-    }
-
-    // 2) Beschreibung/Antwort ergänzen
-    if (current && !line.startsWith("##")) {
-      current.antwort += " " + line;
-    }
+  for (const url of LLMS_URLS) {
+    const res = await axios.get(url);
+    // Hier parse deine QAs raus (wie vorher) – Platzhalter:
+    const qas = res.data.split("\n\n").map((chunk, i) => ({
+      frage: `Info #${i}`,
+      antwort: chunk.trim()
+    }));
+    allFaqs.push(...qas);
   }
 
-  if (current) faqs.push(current);
-  return faqs;
-}
+  console.log(`📄 ${allFaqs.length} FAQs extrahiert.`);
 
-async function pushFAQ(faqs) {
   try {
-    const res = await axios.post(BACKEND_URL, faqs, {
-      headers: { "Content-Type": "application/json" }
-    });
-    console.log("✅ FAQ erfolgreich importiert:", res.data);
+    // Versuch: alles in einem Schwung
+    await axios.post(BACKEND_URL, allFaqs, { headers: { "Content-Type": "application/json" } });
+    console.log("✅ Alles auf einmal importiert.");
   } catch (err) {
-    console.error("❌ Fehler beim FAQ-Import:", err.response?.data || err.message);
+    if (err.response?.status === 413) {
+      console.warn("⚠️ Payload zu groß – wechsle auf Batches…");
+
+      // in Blöcke von 50 FAQs aufteilen
+      const batchSize = 50;
+      for (let i = 0; i < allFaqs.length; i += batchSize) {
+        const batch = allFaqs.slice(i, i + batchSize);
+        try {
+          await axios.post(BACKEND_URL, batch, { headers: { "Content-Type": "application/json" } });
+          console.log(`✅ Batch ${i / batchSize + 1} importiert (${batch.length} FAQs).`);
+        } catch (e) {
+          console.error("❌ Batch-Import fehlgeschlagen:", e.message);
+        }
+      }
+    } else {
+      console.error("❌ Fehler beim FAQ-Import:", err.message);
+    }
   }
 }
 
-(async () => {
-  try {
-    console.log("🔎 Lade LLMS:", LLMS_URL);
-    const lines = await fetchLLMS();
-    const faqs = parseLLMS(lines);
-    console.log(`📄 ${faqs.length} FAQs extrahiert.`);
-    await pushFAQ(faqs);
-  } catch (err) {
-    console.error("❌ Fehler:", err.message);
-  }
-})();
+run();
