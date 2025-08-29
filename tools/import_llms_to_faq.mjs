@@ -3,22 +3,55 @@ import fs from "fs";
 
 const LLMS_URLS = (process.env.LLMS_SOURCES || "").split(",").filter(Boolean);
 
-function isValidFaq(text) {
-  // Nur Texte behalten, die nach Frage+Antwort aussehen
-  if (!text) return false;
+function isMeta(text) {
+  if (!text) return true;
+  const t = text.toLowerCase();
 
-  // Metadaten und Footer rausfiltern
-  if (text.includes("Nutzungsbedingungen")) return false;
-  if (text.includes("Gesamtanzahl Links")) return false;
-  if (text.includes("Dateiname:")) return false;
-  if (text.includes("Version:")) return false;
-  if (text.includes("Erstellt am:")) return false;
+  // rausfiltern: Metadaten & unnötiges Zeug
+  if (t.includes("nutzungsbedingungen")) return true;
+  if (t.includes("gesamtanzahl links")) return true;
+  if (t.includes("dateiname:")) return true;
+  if (t.includes("version:")) return true;
+  if (t.includes("erstellt am:")) return true;
+  if (t.includes("pdf-download")) return true;
+  if (t.includes("click") || t.includes("klicken")) return true;
 
-  // PDF-Links und "Download"-Blöcke überspringen
-  if (text.toLowerCase().includes("pdf-download")) return false;
+  return false;
+}
 
-  // Nur behalten, wenn Text mindestens 20 Zeichen hat
-  return text.trim().length > 20;
+function extractFaqs(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+  let faqs = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    let line = lines[i];
+
+    // echte Frage?
+    if (line.endsWith("?") && !isMeta(line)) {
+      const frage = line;
+
+      // Antwort zusammensammeln = alle folgenden Zeilen bis zur nächsten Frage
+      let antwortParts = [];
+      i++;
+      while (i < lines.length && !lines[i].endsWith("?")) {
+        if (!isMeta(lines[i])) {
+          antwortParts.push(lines[i]);
+        }
+        i++;
+      }
+
+      const antwort = antwortParts.join(" ").trim();
+      if (antwort.length > 5) {
+        faqs.push({ frage, antwort });
+      }
+    } else {
+      i++;
+    }
+  }
+
+  return faqs;
 }
 
 async function run() {
@@ -29,24 +62,15 @@ async function run() {
     const res = await axios.get(url);
     const text = res.data;
 
-    // Absätze splitten
-    const qas = text
-      .split("\n\n")
-      .map((chunk, i) => chunk.trim())
-      .filter(isValidFaq)
-      .map((chunk, i) => ({
-        frage: `Info #${i + 1}`,
-        antwort: chunk,
-      }));
-
-    console.log(`✅ ${qas.length} valide FAQs extrahiert von ${url}`);
+    const qas = extractFaqs(text);
+    console.log(`✅ ${qas.length} FAQs extrahiert von ${url}`);
     allFaqs.push(...qas);
   }
 
-  console.log(`📄 Gesamt nach Filter: ${allFaqs.length} FAQs`);
+  console.log(`📄 Gesamt: ${allFaqs.length} FAQs`);
 
   if (allFaqs.length === 0) {
-    console.error("❌ Keine verwertbaren FAQs gefunden!");
+    console.error("❌ Keine FAQs erkannt – Parser anpassen?");
     process.exit(1);
   }
 
