@@ -1,45 +1,81 @@
-# 🤖 Uwe Müller Chatbot Backend
+# 🤖 Uwe Müller GmbH (Baumaschinen Müller) Chatbot Backend
 
 Dies ist das Chatbot-Backend für die **Uwe Müller GmbH (Baumaschinen Müller)**.  
-Es verarbeitet FAQs aus `faq.json`, bietet eine Admin-Seite zur Pflege und einen Chat-Endpoint mit GPT-Fallback.
+Es verarbeitet FAQs aus `faq.json`, bietet eine Admin-Seite zur Pflege und einen Chat-Endpoint mit GPT-Fallback.  
+Der Produktkatalog (`catalog.json`) wird automatisch aus LLMS-Quellen generiert.
 
 ---
 
 ## 🌐 Wichtige URLs
 
 - **Admin-Seite (FAQ bearbeiten):**  
-  [https://uwe-chatbot-backend.onrender.com/admin.html](https://uwe-chatbot-backend.onrender.com/admin.html)
+  <a href="https://uwe-chatbot-backend.onrender.com/admin.html" target="_blank">https://uwe-chatbot-backend.onrender.com/admin.html</a>
 
 - **FAQ-API (liefert aktuelle faq.json):**  
-  [https://uwe-chatbot-backend.onrender.com/api/faq](https://uwe-chatbot-backend.onrender.com/api/faq)
+  <a href="https://uwe-chatbot-backend.onrender.com/api/faq" target="_blank">https://uwe-chatbot-backend.onrender.com/api/faq</a>
 
-- **Health Check (für Monitoring):**  
-  [https://uwe-chatbot-backend.onrender.com/api/health](https://uwe-chatbot-backend.onrender.com/api/health)
+- **Catalog-API (liefert aktuelle catalog.json):**  
+  <a href="https://uwe-chatbot-backend.onrender.com/api/catalog" target="_blank">https://uwe-chatbot-backend.onrender.com/api/catalog</a>
+
+- **Chat-API (Chatbot Endpoint, POST mit `{ message }`):**  
+  <a href="https://uwe-chatbot-backend.onrender.com/api/chat" target="_blank">https://uwe-chatbot-backend.onrender.com/api/chat</a>
+
+- **Health-Check (für Monitoring):**  
+  <a href="https://uwe-chatbot-backend.onrender.com/api/health" target="_blank">https://uwe-chatbot-backend.onrender.com/api/health</a>
 
 ---
 
 ## ⚙️ Funktionen
 
 - Verwaltung von FAQ-Daten (`faq.json`)  
-- Separater Produktkatalog (`catalog.json`)  
-- Chat-Endpoint mit FAQ-Matching (Fuse.js) und GPT-Fallback  
+- Automatischer Import von Produktkatalog (`catalog.json`) über GitHub Actions  
+- Chat-Endpoint mit FAQ-Matching (Fuse.js)  
+- GPT-Fallback (OpenAI GPT-4o-mini)  
 - Admin-Oberfläche mit Login & JSON-Editor  
-- Health-Endpoint (`/api/health`) für Monitoring und Warm-Up
+- Cache-Steuerung (FAQ-Matcher kann neu geladen werden)  
 
 ---
 
-## 📋 FAQ-Beispiele
+## 🚀 Setup (lokale Entwicklung)
 
-So sieht die Struktur in `faq.json` aus (wird **manuell** gepflegt über Admin-Panel):
+```bash
+# Repository klonen
+git clone <repo-url>
+cd chatbot-backend
 
-```json
-[
-  {
-    "frage": "Welche Maschinen vermieten Sie?",
-    "antwort": "Wir vermieten Minibagger, Radlader und mehr. 📧 info@baumaschinen-mueller.de 📞 +49 2403 997312"
-  },
-  {
-    "frage": "Wo befindet sich die Uwe Müller GmbH?",
-    "antwort": "Dürener Straße 589a, 52249 Eschweiler. 📞 +49 2403 997312"
-  }
-]
+# Abhängigkeiten installieren
+npm install
+
+# Umgebungsvariablen setzen (.env)
+cp .env.example .env
+# trage OPENAI_API_KEY ein
+
+# Server starten
+node server.js
+---
+📋 FAQ-Beispiele
+
+So sieht die Struktur in faq.json aus:
+---
+
+🔄 Systemübersicht (Mermaid Diagramm)
+flowchart TD
+    A[User Nachricht] --> B[Chat Endpoint /api/chat]
+    B --> C{FAQ Match?}
+    C -->|Ja| D[Antwort aus faq.json]
+    C -->|Nein| E[GPT Fallback (OpenAI)]
+    D --> F[Antwort an User]
+    E --> F[Antwort an User]
+    F --> G[Optional: FAQ-Kandidaten in Admin Panel]
+---
+
+📦 Technologien
+Node.js + Express → REST API
+Fuse.js → FAQ-Suchalgorithmus (Fuzzy Search)
+OpenAI GPT-4o-mini → KI-Antworten
+GitHub Actions → Automatischer Import von catalog.json aus LLMS
+Render → Hosting
+
+👨‍💻 Maintainer
+Profiausbau Aachen GmbH
+📧 info@profiausbau.com
