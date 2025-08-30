@@ -37,8 +37,8 @@
     }
     th { background: #2A2AC4; color: #fff; }
     tr:nth-child(even) { background: #f9f9f9; }
-    .tabs { display: flex; margin-bottom: 20px; }
-    .tab-btn { flex: 1; }
+    .tabs { display: flex; margin-bottom: 20px; justify-content: space-between; align-items: center; }
+    .tab-buttons { display: flex; gap: 6px; }
     .hidden { display: none; }
   </style>
 </head>
@@ -54,10 +54,18 @@
   <div id="admin-panel" style="display:none;">
     <h1>📋 Admin – Uwe Müller GmbH</h1>
 
-    <!-- Tabs -->
+    <!-- Tabs + Buttons oben -->
     <div class="tabs">
-      <button class="tab-btn" onclick="showTab('faq')">FAQ-Editor</button>
-      <button class="tab-btn" onclick="showTab('catalog')">Katalog-Ansicht</button>
+      <div class="tab-buttons">
+        <button class="tab-btn" onclick="showTab('faq')">FAQ-Editor</button>
+        <button class="tab-btn" onclick="showTab('catalog')">Katalog-Ansicht</button>
+      </div>
+      <div class="tab-actions">
+        <a href="/catalog.json" download class="button" style="background:#28a745;" target="_blank" rel="noopener noreferrer">
+          📥 catalog.json herunterladen
+        </a>
+        <button id="logout-button" onclick="logout()">🚪 Logout</button>
+      </div>
     </div>
 
     <!-- FAQ Tab -->
@@ -76,18 +84,11 @@
         <thead><tr><th>Titel</th><th>Details</th></tr></thead>
         <tbody></tbody>
       </table>
-      <br>
-      <!-- Download-Button -->
-      <a href="/catalog.json" download class="button" style="background:#28a745;" target="_blank" rel="noopener noreferrer">
-        📥 catalog.json herunterladen
-      </a>
     </div>
-
-    <button id="logout-button" onclick="logout()">🚪 Logout</button>
   </div>
 
   <script>
-    const PASSWORD = '3092077';
+    const PASSWORD = '3092077236629566Ll';
 
     const saved = localStorage.getItem('admin_pass');
     if (saved === PASSWORD) { showAdminPanel(); }
