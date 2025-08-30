@@ -70,7 +70,7 @@ app.post('/api/chat', async (req, res) => {
     if (!fuse || fuse._docs.length !== faqData.length) {
       fuse = new Fuse(faqData, {
         keys: ['frage'],
-        threshold: 0.3, // enger machen
+        threshold: 0.3,
         distance: 80,
         minMatchCharLength: 2
       })
@@ -127,7 +127,7 @@ app.get('/api/faq', (req, res) => {
 app.post('/api/faq', (req, res) => {
   try {
     fs.writeFileSync(FAQ_FILE, JSON.stringify(req.body, null, 2), 'utf8')
-    fuse = null // Cache leeren
+    fuse = null
     res.json({ success: true })
   } catch (err) {
     console.error("❌ Fehler beim Speichern von FAQ:", err.message)
@@ -163,6 +163,18 @@ app.delete('/api/cache', (req, res) => {
 app.get('/api/catalog', (req, res) => {
   const data = loadCatalogData()
   res.json(data)
+})
+
+// Katalog direkt abrufen (für Admin Download)
+app.get('/catalog.json', (req, res) => {
+  res.sendFile(path.resolve(CATALOG_FILE))
+})
+
+// Katalog mit Datum im Namen herunterladen
+app.get('/download/catalog', (req, res) => {
+  const file = path.resolve(CATALOG_FILE)
+  const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  res.download(file, `catalog-${date}.json`)
 })
 
 // === Frontend & Admin ===
