@@ -6,12 +6,10 @@ const LLMS_URLS = (process.env.LLMS_SOURCES || "")
   .split(",")
   .filter(Boolean);
 
-const FAQ_FILE = "./faq.json";
 const CATALOG_FILE = "./catalog.json";
 
 async function run() {
   console.log("🔎 Lade LLMS:", LLMS_URLS.join(", "));
-  let faqList = [];
   let catalogList = [];
 
   for (const url of LLMS_URLS) {
@@ -25,17 +23,10 @@ async function run() {
       if (line.startsWith("### ")) {
         // alten Block speichern
         if (currentTitle && currentContent.length) {
-          if (currentTitle.includes("?")) {
-            faqList.push({
-              frage: currentTitle,
-              antwort: currentContent.join(" ").substring(0, 400) + "..."
-            });
-          } else {
-            catalogList.push({
-              titel: currentTitle,
-              details: currentContent.join(" ")
-            });
-          }
+          catalogList.push({
+            titel: currentTitle,
+            details: currentContent.join(" ")
+          });
         }
 
         currentTitle = line.replace("### ", "").trim();
@@ -47,25 +38,18 @@ async function run() {
 
     // letzten Block sichern
     if (currentTitle && currentContent.length) {
-      if (currentTitle.includes("?")) {
-        faqList.push({
-          frage: currentTitle,
-          antwort: currentContent.join(" ").substring(0, 400) + "..."
-        });
-      } else {
-        catalogList.push({
-          titel: currentTitle,
-          details: currentContent.join(" ")
-        });
-      }
+      catalogList.push({
+        titel: currentTitle,
+        details: currentContent.join(" ")
+      });
     }
   }
 
-  console.log(`📄 Gesamt: ${faqList.length} FAQs, ${catalogList.length} Katalogeinträge`);
+  console.log(`📄 Gesamt: ${catalogList.length} Katalogeinträge`);
 
-  fs.writeFileSync(FAQ_FILE, JSON.stringify(faqList, null, 2), "utf-8");
   fs.writeFileSync(CATALOG_FILE, JSON.stringify(catalogList, null, 2), "utf-8");
-  console.log("💾 faq.json und catalog.json aktualisiert.");
+  console.log("💾 catalog.json aktualisiert.");
 }
 
 run();
+
