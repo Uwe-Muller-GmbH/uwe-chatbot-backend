@@ -11,7 +11,7 @@
       padding: 0 20px;
     }
     h1 { text-align: center; color: #007cba; }
-    button {
+    button, a.button {
       margin: 6px;
       background: #007cba;
       color: white;
@@ -19,8 +19,10 @@
       border: none;
       cursor: pointer;
       border-radius: 5px;
+      text-decoration: none;
+      display: inline-block;
     }
-    button:hover { background: #005f99; }
+    button:hover, a.button:hover { background: #005f99; }
     #logout-button { background: #999; }
     #logout-button:hover { background: #666; }
     textarea {
@@ -74,6 +76,11 @@
         <thead><tr><th>Titel</th><th>Details</th></tr></thead>
         <tbody></tbody>
       </table>
+      <br>
+      <!-- Download-Button -->
+      <a href="/catalog.json" download class="button" style="background:#28a745;" target="_blank" rel="noopener noreferrer">
+        📥 catalog.json herunterladen
+      </a>
     </div>
 
     <button id="logout-button" onclick="logout()">🚪 Logout</button>
