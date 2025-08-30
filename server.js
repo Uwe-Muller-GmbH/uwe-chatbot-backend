@@ -57,14 +57,7 @@ app.post('/api/chat', async (req, res) => {
     })
   }
 
-  // Maschinen-Anfragen abfangen
-  if (machineKeywords.some(k => normalized.includes(k))) {
-    return res.json({
-      reply: "🚜 Wir haben viele Maschinen im Angebot. Bitte melden Sie sich direkt:\n📧 info@baumaschinen-mueller.de\n📞 +49 2403 997312"
-    })
-  }
-
-  // FAQ prüfen
+  // Zuerst FAQ prüfen
   const faqData = loadFaqData()
   if (faqData.length) {
     if (!fuse || fuse._docs.length !== faqData.length) {
@@ -79,6 +72,13 @@ app.post('/api/chat', async (req, res) => {
     if (result.length) {
       return res.json({ reply: result[0].item.antwort })
     }
+  }
+
+  // Maschinen-Anfragen nur, wenn keine FAQ passt
+  if (machineKeywords.some(k => normalized.includes(k))) {
+    return res.json({
+      reply: "🚜 Wir haben viele Maschinen im Angebot. Bitte melden Sie sich direkt:\n📧 info@baumaschinen-mueller.de\n📞 +49 2403 997312"
+    })
   }
 
   // === GPT Fallback ===
@@ -165,7 +165,7 @@ app.get('/api/catalog', (req, res) => {
   res.json(data)
 })
 
-// Katalog direkt abrufen (für Admin Download)
+// Katalog direkt abrufen
 app.get('/catalog.json', (req, res) => {
   res.sendFile(path.resolve(CATALOG_FILE))
 })
@@ -197,3 +197,4 @@ app.get('*', (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log('✅ Chatbot + Admin + Catalog läuft auf Port 3000')
 })
+
