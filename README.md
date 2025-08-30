@@ -8,10 +8,10 @@ Es verarbeitet FAQs aus `faq.json`, bietet eine Admin-Seite zur Pflege und einen
 ## 🌐 Wichtige URLs
 
 - **Admin-Seite (FAQ bearbeiten):**  
-  [https://uwe-chatbot-backend.onrender.com/admin.html](https://uwe-chatbot-backend.onrender.com/admin.html)
+  <a href="https://uwe-chatbot-backend.onrender.com/admin.html" target="_blank">https://uwe-chatbot-backend.onrender.com/admin.html</a>
 
 - **FAQ-API (liefert aktuelle faq.json):**  
-  [https://uwe-chatbot-backend.onrender.com/api/faq](https://uwe-chatbot-backend.onrender.com/api/faq)
+  <a href="https://uwe-chatbot-backend.onrender.com/api/faq" target="_blank">https://uwe-chatbot-backend.onrender.com/api/faq</a>
 
 ---
 
@@ -39,5 +39,3 @@ So sieht die Struktur in `faq.json` aus:
     "antwort": "Dürener Straße 589a, 52249 Eschweiler. 📞 +49 2403 997312"
   }
 ]
-
-
