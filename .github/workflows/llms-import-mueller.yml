@@ -13,7 +13,7 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_PAT }}   # Dein Personal Access Token mit repo-Rechten
+          token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,10 +25,22 @@ jobs:
           npm install
           npm ls axios || npm install axios
 
+      # 🟢 Warm up Render (verhindert Cold Start)
+      - name: Warm up Render (avoid cold start)
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://uwe-chatbot-backend.onrender.com/api/chat" \
+              -H "Content-Type: application/json" \
+              -d '{"message":"ping"}' || true)
+            echo "Attempt $i: HTTP $code"
+            [ "$code" = "200" ] && break
+            sleep 20
+          done
+
       - name: Run LLMS Import Script
         env:
           LLMS_SOURCES: "https://www.baumaschinen-mueller.de/llms.txt,https://www.baumaschinen-mueller.de/llms-full.txt"
-        run: node importFaqs.js   # neues Script erzeugt faq.json + catalog.json
+        run: node importFaqs.js   # erzeugt faq.json + catalog.json
 
       - name: Commit & Push updated faq.json + catalog.json
         run: |
