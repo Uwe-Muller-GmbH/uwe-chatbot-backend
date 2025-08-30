@@ -48,7 +48,7 @@ app.get('/api/health', (req, res) => {
   const catalogData = loadCatalogData()
 
   res.json({
-    status: 'ok',
+    status: faqData.length || catalogData.length ? 'ok' : 'warning',
     faqCount: faqData.length,
     catalogCount: catalogData.length,
     timestamp: new Date().toISOString()
@@ -62,6 +62,11 @@ const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "maschi
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
   const normalized = message.toLowerCase().trim()
+
+  // ➤ Schnelle Antwort auf ping (für Warmup / Health)
+  if (normalized === "ping") {
+    return res.json({ reply: "pong" })
+  }
 
   // Begrüßung
   if (greetings.some(g => normalized === g)) {
