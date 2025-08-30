@@ -42,6 +42,11 @@ function loadCatalogData() {
   return []
 }
 
+// === NEU: Ping-Endpoint für Monitoring ===
+app.get('/api/ping', (req, res) => {
+  res.json({ reply: 'pong', time: new Date().toISOString() })
+})
+
 // === Chat Endpoint ===
 const greetings = ["hi", "hallo", "hey", "guten tag", "moin", "servus", "danke", "vielen dank"]
 const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "maschinen", "lader", "komatsu", "caterpillar", "volvo", "jcb", "kubota", "motor"]
@@ -197,4 +202,3 @@ app.get('*', (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log('✅ Chatbot + Admin + Catalog läuft auf Port 3000')
 })
-
