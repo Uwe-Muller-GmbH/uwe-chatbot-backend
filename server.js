@@ -42,9 +42,21 @@ function loadCatalogData() {
   return []
 }
 
-// === NEU: Ping-Endpoint für Monitoring ===
+// === Health & Ping Endpoints ===
 app.get('/api/ping', (req, res) => {
-  res.json({ reply: 'pong', time: new Date().toISOString() })
+  res.json({ reply: 'pong' })
+})
+
+app.get('/api/health', (req, res) => {
+  const faq = loadFaqData()
+  const catalog = loadCatalogData()
+
+  res.json({
+    status: 'ok',
+    faqCount: Array.isArray(faq) ? faq.length : 0,
+    catalogCount: Array.isArray(catalog) ? catalog.length : 0,
+    timestamp: new Date().toISOString()
+  })
 })
 
 // === Chat Endpoint ===
