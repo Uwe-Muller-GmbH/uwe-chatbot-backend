@@ -8,10 +8,13 @@ Es verarbeitet FAQs aus `faq.json`, bietet eine Admin-Seite zur Pflege und einen
 ## 🌐 Wichtige URLs
 
 - **Admin-Seite (FAQ bearbeiten):**  
-  <a href="https://uwe-chatbot-backend.onrender.com/admin.html" target="_blank">https://uwe-chatbot-backend.onrender.com/admin.html</a>
+  [https://uwe-chatbot-backend.onrender.com/admin.html](https://uwe-chatbot-backend.onrender.com/admin.html)
 
 - **FAQ-API (liefert aktuelle faq.json):**  
-  <a href="https://uwe-chatbot-backend.onrender.com/api/faq" target="_blank">https://uwe-chatbot-backend.onrender.com/api/faq</a>
+  [https://uwe-chatbot-backend.onrender.com/api/faq](https://uwe-chatbot-backend.onrender.com/api/faq)
+
+- **Health Check (für Monitoring):**  
+  [https://uwe-chatbot-backend.onrender.com/api/health](https://uwe-chatbot-backend.onrender.com/api/health)
 
 ---
 
@@ -21,12 +24,13 @@ Es verarbeitet FAQs aus `faq.json`, bietet eine Admin-Seite zur Pflege und einen
 - Separater Produktkatalog (`catalog.json`)  
 - Chat-Endpoint mit FAQ-Matching (Fuse.js) und GPT-Fallback  
 - Admin-Oberfläche mit Login & JSON-Editor  
+- Health-Endpoint (`/api/health`) für Monitoring und Warm-Up
 
 ---
 
 ## 📋 FAQ-Beispiele
 
-So sieht die Struktur in `faq.json` aus:
+So sieht die Struktur in `faq.json` aus (wird **manuell** gepflegt über Admin-Panel):
 
 ```json
 [
