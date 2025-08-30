@@ -42,19 +42,15 @@ function loadCatalogData() {
   return []
 }
 
-// === Health & Ping Endpoints ===
-app.get('/api/ping', (req, res) => {
-  res.json({ reply: 'pong' })
-})
-
+// === Health Check ===
 app.get('/api/health', (req, res) => {
-  const faq = loadFaqData()
-  const catalog = loadCatalogData()
+  const faqData = loadFaqData()
+  const catalogData = loadCatalogData()
 
   res.json({
     status: 'ok',
-    faqCount: Array.isArray(faq) ? faq.length : 0,
-    catalogCount: Array.isArray(catalog) ? catalog.length : 0,
+    faqCount: faqData.length,
+    catalogCount: catalogData.length,
     timestamp: new Date().toISOString()
   })
 })
