@@ -29,9 +29,7 @@ jobs:
       - name: Warm up Render (avoid cold start)
         run: |
           for i in 1 2 3 4 5; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://uwe-chatbot-backend.onrender.com/api/chat" \
-              -H "Content-Type: application/json" \
-              -d '{"message":"ping"}' || true)
+            code=$(curl -s -o /dev/null -w "%{http_code}" "https://uwe-chatbot-backend.onrender.com/api/health" || true)
             echo "Attempt $i: HTTP $code"
             [ "$code" = "200" ] && break
             sleep 20
