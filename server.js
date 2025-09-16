@@ -9,16 +9,15 @@ import { fileURLToPath } from 'url'
 const app = express()
 app.use(express.json())
 
-// ---- CORS: nur erlaubte Origins (Frontend liegt auf baumaschinen-mueller.de)
+// ---- CORS: nur erlaubte Origins (füge hier Domains hinzu, falls nötig)
 const allowedOrigins = [
   'https://www.baumaschinen-mueller.de',
-  // 'https://www.profiausbau.com', // optional, falls benötigt
+  // 'https://www.profiausbau.com',
 ]
 app.use(cors({
   origin: (origin, cb) => {
-    // erlauben für gleiche Origin/Tools (curl, Postman) ohne Origin-Header:
-    if (!origin) return cb(null, true)
-    return cb(null, allowedOrigins.includes(origin))
+    if (!origin) return cb(null, true) // z.B. curl/Postman
+    cb(null, allowedOrigins.includes(origin))
   }
 }))
 
@@ -26,19 +25,49 @@ app.use(cors({
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Dateien
-const FAQ_FILE = './faq.json'
-const CATALOG_FILE = './catalog.json'
+// ---- Datenverzeichnis (persistente Render Disk)
+const DATA_DIR = process.env.DATA_DIR || path.resolve('./data')
+fs.mkdirSync(DATA_DIR, { recursive: true })
+
+// Ziel-Dateien (persistente Pfade)
+const FAQ_FILE = path.join(DATA_DIR, 'faq.json')
+const CATALOG_FILE = path.join(DATA_DIR, 'catalog.json')
+
+// Quell-Dateien (alte Repo-Pfade) – für Migration beim ersten Start
+const REPO_FAQ = path.resolve('./faq.json')
+const REPO_CATALOG = path.resolve('./catalog.json')
+
+// Atomic Write Helper
+function writeJsonAtomic(filePath, dataObj) {
+  const tmp = filePath + '.tmp'
+  fs.writeFileSync(tmp, JSON.stringify(dataObj, null, 2), 'utf8')
+  fs.renameSync(tmp, filePath)
+}
+
+// Erststart-Migration: Nur wenn im DATA_DIR noch nichts liegt
+try {
+  if (!fs.existsSync(FAQ_FILE) && fs.existsSync(REPO_FAQ)) {
+    fs.copyFileSync(REPO_FAQ, FAQ_FILE)
+    console.log('⬇️ FAQ migriert →', FAQ_FILE)
+  }
+  if (!fs.existsSync(CATALOG_FILE) && fs.existsSync(REPO_CATALOG)) {
+    fs.copyFileSync(REPO_CATALOG, CATALOG_FILE)
+    console.log('⬇️ Catalog migriert →', CATALOG_FILE)
+  }
+} catch (e) {
+  console.warn('⚠️ Migration übersprungen:', e.message)
+}
+
 let fuse = null
 
 function loadFaqData() {
   try {
     if (fs.existsSync(FAQ_FILE)) {
-      const content = fs.readFileSync(path.resolve(FAQ_FILE), 'utf8')
+      const content = fs.readFileSync(FAQ_FILE, 'utf8')
       return JSON.parse(content)
     }
   } catch (err) {
-    console.error('❌ Fehler beim Lesen von faq.json:', err.message)
+    console.error('❌ Fehler beim Lesen von FAQ:', err.message)
   }
   return []
 }
@@ -46,11 +75,11 @@ function loadFaqData() {
 function loadCatalogData() {
   try {
     if (fs.existsSync(CATALOG_FILE)) {
-      const content = fs.readFileSync(path.resolve(CATALOG_FILE), 'utf8')
+      const content = fs.readFileSync(CATALOG_FILE, 'utf8')
       return JSON.parse(content)
     }
   } catch (err) {
-    console.error('❌ Fehler beim Lesen von catalog.json:', err.message)
+    console.error('❌ Fehler beim Lesen von Catalog:', err.message)
   }
   return []
 }
@@ -66,25 +95,18 @@ function healthPayload() {
     timestamp: new Date().toISOString()
   }
 }
-
-app.get(['/api/health', '/health'], (req, res) => {
-  res.json(healthPayload())
-})
-app.head(['/api/health', '/health'], (req, res) => {
-  res.status(200).end()
-})
+app.get(['/api/health', '/health'], (req, res) => res.json(healthPayload()))
+app.head(['/api/health', '/health'], (req, res) => res.status(200).end())
 
 // === Chat Endpoint ===
-const greetings = ["hi", "hallo", "hey", "guten tag", "moin", "servus", "danke", "vielen dank"]
-const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "maschinen", "lader", "komatsu", "caterpillar", "volvo", "jcb", "kubota", "motor"]
+const greetings = ["hi","hallo","hey","guten tag","moin","servus","danke","vielen dank"]
+const machineKeywords = ["bagger","minibagger","radlader","maschine","maschinen","lader","komatsu","caterpillar","volvo","jcb","kubota","motor"]
 
 app.post('/api/chat', async (req, res) => {
-  const { message } = req.body
+  const { message } = req.body || {}
   const normalized = (message || '').toLowerCase().trim()
 
-  if (normalized === "ping") {
-    return res.json({ reply: "pong" })
-  }
+  if (normalized === 'ping') return res.json({ reply: 'pong' })
 
   if (greetings.some(g => normalized === g)) {
     return res.json({ reply: "👋 Hallo! Wie kann ich Ihnen helfen?" })
@@ -93,14 +115,9 @@ app.post('/api/chat', async (req, res) => {
   const faqData = loadFaqData()
   if (faqData.length) {
     if (!fuse || fuse._docs.length !== faqData.length) {
-      fuse = new Fuse(faqData, {
-        keys: ['frage'],
-        threshold: 0.3,
-        distance: 80,
-        minMatchCharLength: 2
-      })
+      fuse = new Fuse(faqData, { keys: ['frage'], threshold: 0.3, distance: 80, minMatchCharLength: 2 })
     }
-    const result = fuse.search(message)
+    const result = fuse.search(message || '')
     if (result.length) {
       return res.json({ reply: result[0].item.antwort })
     }
@@ -127,17 +144,12 @@ Wenn es um Maschinen geht, verweise IMMER auf den direkten Kontakt:
 📞 +49 2403 997312
 Wenn du keine Infos hast, ebenfalls Kontakt angeben.`
           },
-          { role: 'user', content: message }
+          { role: 'user', content: message || '' }
         ],
         temperature: 0.6,
         max_tokens: 500
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
     )
 
     const reply = response.data.choices?.[0]?.message?.content
@@ -149,59 +161,47 @@ Wenn du keine Infos hast, ebenfalls Kontakt angeben.`
 })
 
 // === FAQ API ===
-app.get('/api/faq', (req, res) => {
-  res.json(loadFaqData())
-})
+app.get('/api/faq', (req, res) => res.json(loadFaqData()))
 
 app.post('/api/faq', (req, res) => {
   try {
-    fs.writeFileSync(FAQ_FILE, JSON.stringify(req.body, null, 2), 'utf8')
+    writeJsonAtomic(FAQ_FILE, req.body || [])
     fuse = null
     res.json({ success: true })
   } catch (err) {
-    console.error("❌ Fehler beim Speichern von FAQ:", err.message)
+    console.error('❌ Fehler beim Speichern von FAQ:', err.message)
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
 app.post('/api/faq-add-single', (req, res) => {
   try {
-    const { frage, antwort } = req.body
-    if (!frage || !antwort) {
-      return res.status(400).json({ success: false, error: "Frage oder Antwort fehlt" })
-    }
+    const { frage, antwort } = req.body || {}
+    if (!frage || !antwort) return res.status(400).json({ success: false, error: 'Frage oder Antwort fehlt' })
     const data = loadFaqData()
     data.push({ frage, antwort })
-    fs.writeFileSync(FAQ_FILE, JSON.stringify(data, null, 2), 'utf8')
+    writeJsonAtomic(FAQ_FILE, data)
     fuse = null
     res.json({ success: true })
   } catch (err) {
-    console.error("❌ Fehler beim Hinzufügen:", err.message)
+    console.error('❌ Fehler beim Hinzufügen:', err.message)
     res.status(500).json({ success: false, error: err.message })
   }
 })
 
-// Cache löschen
-app.delete('/api/cache', (req, res) => {
-  fuse = null
-  res.json({ success: true })
-})
+// Cache leeren
+app.delete('/api/cache', (req, res) => { fuse = null; res.json({ success: true }) })
 
 // === Catalog API ===
-app.get('/api/catalog', (req, res) => {
-  res.json(loadCatalogData())
-})
+app.get('/api/catalog', (req, res) => res.json(loadCatalogData()))
 
 // Katalog-Datei direkt
-app.get('/catalog.json', (req, res) => {
-  res.sendFile(path.resolve(CATALOG_FILE))
-})
+app.get('/catalog.json', (req, res) => res.sendFile(CATALOG_FILE))
 
 // Katalog-Download mit Datum
 app.get('/download/catalog', (req, res) => {
-  const file = path.resolve(CATALOG_FILE)
   const date = new Date().toISOString().split('T')[0]
-  res.download(file, `catalog-${date}.json`)
+  res.download(CATALOG_FILE, `catalog-${date}.json`)
 })
 
 // === Admin-Frontend (bleibt)
@@ -211,9 +211,7 @@ app.get('/admin.html', (req, res) => {
 })
 
 // 404 für alles andere (API-only)
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' })
-})
+app.use((req, res) => res.status(404).json({ error: 'Not found' }))
 
 app.listen(process.env.PORT || 3000, () => {
   console.log('✅ API läuft auf Port', process.env.PORT || 3000)
