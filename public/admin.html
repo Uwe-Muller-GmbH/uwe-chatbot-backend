@@ -1,69 +1,45 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Admin – Uwe Müller GmbH</title>
   <style>
-    body {
-      font-family: sans-serif;
-      max-width: 1000px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    h1 { text-align: center; color: #007cba; }
-    button, a.button {
-      margin: 6px;
-      background: #007cba;
-      color: white;
-      padding: 8px 16px;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-      text-decoration: none;
-      display: inline-block;
-    }
-    button:hover, a.button:hover { background: #005f99; }
-    #logout-button { background: #999; }
-    #logout-button:hover { background: #666; }
-    textarea {
-      width: 100%; height: 280px; margin-top: 10px; font-family: monospace;
-    }
-    table {
-      width: 100%; border-collapse: collapse; margin-top: 15px;
-      background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-    th, td {
-      padding: 10px; border: 1px solid #ddd; text-align: left;
-    }
-    th { background: #2A2AC4; color: #fff; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .tabs { display: flex; margin-bottom: 20px; justify-content: space-between; align-items: center; }
-    .tab-buttons { display: flex; gap: 6px; }
-    .hidden { display: none; }
+    body{font-family:sans-serif;max-width:1000px;margin:40px auto;padding:0 20px}
+    h1{text-align:center;color:#007cba}
+    button,a.button{margin:6px;background:#007cba;color:#fff;padding:8px 16px;border:none;cursor:pointer;border-radius:5px;text-decoration:none;display:inline-block}
+    button:hover,a.button:hover{background:#005f99}
+    #logout-button{background:#999} #logout-button:hover{background:#666}
+    textarea{width:100%;height:280px;margin-top:10px;font-family:monospace}
+    table{width:100%;border-collapse:collapse;margin-top:15px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+    th,td{padding:10px;border:1px solid #ddd;text-align:left}
+    th{background:#2A2AC4;color:#fff} tr:nth-child(even){background:#f9f9f9}
+    .tabs{display:flex;margin-bottom:20px;justify-content:space-between;align-items:center}
+    .tab-buttons{display:flex;gap:6px}.hidden{display:none}
+    #login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
+    .muted{color:#666;font-size:12px}
   </style>
 </head>
 <body>
-  <div id="login-screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;">
+  <!-- Login -->
+  <div id="login-screen">
     <h2>🔐 Admin Login</h2>
-    <input type="password" id="admin-password" placeholder="Passwort eingeben..." 
-           style="padding:10px;margin:10px;font-size:16px;" onkeydown="handleEnter(event)">
-    <button onclick="checkPassword()" style="padding:10px 20px;font-size:16px;">Einloggen</button>
+    <input type="password" id="admin-token" placeholder="Admin-Token eingeben…" style="padding:10px;margin:10px;font-size:16px" onkeydown="handleEnter(event)" />
+    <button onclick="checkToken()" style="padding:10px 20px;font-size:16px">Einloggen</button>
+    <p class="muted">Hinweis: Token wird nur in dieser Sitzung gespeichert (sessionStorage).</p>
     <p id="error-msg" style="color:red;"></p>
   </div>
 
-  <div id="admin-panel" style="display:none;">
+  <!-- Admin Panel -->
+  <div id="admin-panel" style="display:none">
     <h1>📋 Admin – Uwe Müller GmbH</h1>
 
-    <!-- Tabs + Buttons oben -->
     <div class="tabs">
       <div class="tab-buttons">
         <button class="tab-btn" onclick="showTab('faq')">FAQ-Editor</button>
         <button class="tab-btn" onclick="showTab('catalog')">Katalog-Ansicht</button>
       </div>
       <div class="tab-actions">
-        <a href="/catalog.json" download class="button" style="background:#28a745;" target="_blank" rel="noopener noreferrer">
-          📥 catalog.json herunterladen
-        </a>
+        <a href="/catalog.json" download class="button" style="background:#28a745" target="_blank" rel="noopener noreferrer">📥 catalog.json herunterladen</a>
         <button id="logout-button" onclick="logout()">🚪 Logout</button>
       </div>
     </div>
@@ -71,10 +47,10 @@
     <!-- FAQ Tab -->
     <div id="tab-faq">
       <p>Hier kannst du die FAQs bearbeiten, die der Chatbot nutzt.</p>
-      <textarea id="faq-content"></textarea><br>
+      <textarea id="faq-content"></textarea><br />
       <button onclick="saveFAQ()">💾 Speichern</button>
       <button id="clear-cache-btn">🧹 Cache löschen</button>
-      <p id="status" style="color:green;"></p>
+      <p id="status" style="color:green"></p>
     </div>
 
     <!-- Catalog Tab -->
@@ -88,19 +64,26 @@
   </div>
 
   <script>
-    const PASSWORD = '3092077';
+    const TOKEN_KEY = 'admin_token_session';
 
-    const saved = localStorage.getItem('admin_pass');
-    if (saved === PASSWORD) { showAdminPanel(); }
+    // Auto-login, falls im sessionStorage vorhanden
+    (function init() {
+      const token = sessionStorage.getItem(TOKEN_KEY);
+      if (token) showAdminPanel();
+    })();
 
-    function checkPassword() {
-      const input = document.getElementById('admin-password').value.trim();
-      if (input === PASSWORD) {
-        localStorage.setItem('admin_pass', PASSWORD);
-        showAdminPanel();
-      } else {
-        document.getElementById('error-msg').innerText = '❌ Falsches Passwort!';
+    function getToken() {
+      return sessionStorage.getItem(TOKEN_KEY) || '';
+    }
+
+    function checkToken() {
+      const token = document.getElementById('admin-token').value.trim();
+      if (!token) {
+        document.getElementById('error-msg').innerText = '❌ Bitte Token eingeben.';
+        return;
       }
+      sessionStorage.setItem(TOKEN_KEY, token);
+      showAdminPanel();
     }
 
     function showAdminPanel() {
@@ -111,12 +94,13 @@
     }
 
     function logout() {
-      localStorage.removeItem('admin_pass');
+      sessionStorage.removeItem(TOKEN_KEY);
       document.getElementById('admin-panel').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('admin-token').value = '';
     }
 
-    function handleEnter(e) { if (e.key === 'Enter') checkPassword(); }
+    function handleEnter(e) { if (e.key === 'Enter') checkToken(); }
 
     function showTab(tab) {
       document.getElementById('tab-faq').classList.add('hidden');
@@ -124,11 +108,13 @@
       document.getElementById('tab-' + tab).classList.remove('hidden');
     }
 
+    // --- FAQ ---
     async function loadFAQ() {
       try {
-        const res = await fetch('/api/faq');
+        const res = await fetch('/api/faq', { headers: { 'Cache-Control': 'no-store' } });
         const json = await res.json();
         document.getElementById('faq-content').value = JSON.stringify(json, null, 2);
+        document.getElementById('status').textContent = '';
       } catch {
         document.getElementById('status').textContent = '❌ Fehler beim Laden der FAQs!';
       }
@@ -136,20 +122,22 @@
 
     async function saveFAQ() {
       const text = document.getElementById('faq-content').value.trim();
-      if (!text) {
-        document.getElementById('status').textContent = '⚠️ Bitte fülle das Feld aus.';
-        return;
-      }
+      const status = document.getElementById('status');
+      if (!text) { status.textContent = '⚠️ Bitte fülle das Feld aus.'; return; }
       try {
         const json = JSON.parse(text);
         const res = await fetch('/api/faq', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-token': getToken()
+          },
           body: JSON.stringify(json)
         });
-        document.getElementById('status').textContent = res.ok ? '✅ Gespeichert!' : '❌ Fehler beim Speichern!';
+        status.textContent = res.ok ? '✅ Gespeichert!' : '❌ Fehler beim Speichern!';
+        if (res.ok) await loadFAQ(); // nach Speichern neu laden
       } catch {
-        document.getElementById('status').textContent = '⚠️ Ungültiges JSON!';
+        status.textContent = '⚠️ Ungültiges JSON!';
       }
     }
 
@@ -157,7 +145,10 @@
       const status = document.getElementById('status');
       status.textContent = '⏳ Cache wird gelöscht...';
       try {
-        const res = await fetch('/api/cache', { method: 'DELETE' });
+        const res = await fetch('/api/cache', {
+          method: 'DELETE',
+          headers: { 'x-admin-token': getToken() }
+        });
         const result = await res.json();
         status.textContent = result.success ? '✅ Cache gelöscht.' : '❌ Fehler beim Cache löschen';
       } catch {
@@ -165,15 +156,17 @@
       }
     });
 
+    // --- Catalog (readonly) ---
     async function loadCatalog() {
       try {
-        const res = await fetch('/api/catalog');
+        const res = await fetch('/api/catalog', { headers: { 'Cache-Control': 'no-store' } });
         const data = await res.json();
         const tbody = document.querySelector('#catalogTable tbody');
         tbody.innerHTML = '';
         data.forEach(item => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${item.titel}</td><td>${item.details.substring(0,300)}...</td>`;
+          const details = (item.details || '').toString();
+          tr.innerHTML = `<td>${escapeHtml(item.titel || '')}</td><td>${escapeHtml(details.substring(0,300))}...</td>`;
           tbody.appendChild(tr);
         });
       } catch (err) {
@@ -181,14 +174,15 @@
       }
     }
 
-    // Warm-up
-    window.addEventListener('load', () => {
-      fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'ping' })
-      });
-    });
+    // kleine XSS-Absicherung beim Rendern
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
   </script>
 </body>
 </html>
