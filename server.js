@@ -8,12 +8,25 @@ import { fileURLToPath } from 'url'
 
 const app = express()
 app.use(express.json())
-app.use(cors())
 
-// __dirname nachbauen (wegen ES-Modules)
+// ---- CORS: nur erlaubte Origins (Frontend liegt auf baumaschinen-mueller.de)
+const allowedOrigins = [
+  'https://www.baumaschinen-mueller.de',
+  // 'https://www.profiausbau.com', // optional, falls benötigt
+]
+app.use(cors({
+  origin: (origin, cb) => {
+    // erlauben für gleiche Origin/Tools (curl, Postman) ohne Origin-Header:
+    if (!origin) return cb(null, true)
+    return cb(null, allowedOrigins.includes(origin))
+  }
+}))
+
+// __dirname für ES-Modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Dateien
 const FAQ_FILE = './faq.json'
 const CATALOG_FILE = './catalog.json'
 let fuse = null
@@ -43,16 +56,22 @@ function loadCatalogData() {
 }
 
 // === Health Check ===
-app.get('/api/health', (req, res) => {
+function healthPayload() {
   const faqData = loadFaqData()
   const catalogData = loadCatalogData()
-
-  res.json({
-    status: faqData.length || catalogData.length ? 'ok' : 'warning',
+  return {
+    status: (faqData.length || catalogData.length) ? 'ok' : 'warning',
     faqCount: faqData.length,
     catalogCount: catalogData.length,
     timestamp: new Date().toISOString()
-  })
+  }
+}
+
+app.get(['/api/health', '/health'], (req, res) => {
+  res.json(healthPayload())
+})
+app.head(['/api/health', '/health'], (req, res) => {
+  res.status(200).end()
 })
 
 // === Chat Endpoint ===
@@ -61,21 +80,16 @@ const machineKeywords = ["bagger", "minibagger", "radlader", "maschine", "maschi
 
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body
-  const normalized = message.toLowerCase().trim()
+  const normalized = (message || '').toLowerCase().trim()
 
-  // ➤ Schnelle Antwort auf ping (für Warmup / Health)
   if (normalized === "ping") {
     return res.json({ reply: "pong" })
   }
 
-  // Begrüßung
   if (greetings.some(g => normalized === g)) {
-    return res.json({
-      reply: "👋 Hallo! Wie kann ich Ihnen helfen?"
-    })
+    return res.json({ reply: "👋 Hallo! Wie kann ich Ihnen helfen?" })
   }
 
-  // Zuerst FAQ prüfen
   const faqData = loadFaqData()
   if (faqData.length) {
     if (!fuse || fuse._docs.length !== faqData.length) {
@@ -92,14 +106,12 @@ app.post('/api/chat', async (req, res) => {
     }
   }
 
-  // Maschinen-Anfragen nur, wenn keine FAQ passt
   if (machineKeywords.some(k => normalized.includes(k))) {
     return res.json({
       reply: "🚜 Wir haben viele Maschinen im Angebot. Bitte melden Sie sich direkt:\n📧 info@baumaschinen-mueller.de\n📞 +49 2403 997312"
     })
   }
 
-  // === GPT Fallback ===
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -138,8 +150,7 @@ Wenn du keine Infos hast, ebenfalls Kontakt angeben.`
 
 // === FAQ API ===
 app.get('/api/faq', (req, res) => {
-  const data = loadFaqData()
-  res.json(data)
+  res.json(loadFaqData())
 })
 
 app.post('/api/faq', (req, res) => {
@@ -159,7 +170,6 @@ app.post('/api/faq-add-single', (req, res) => {
     if (!frage || !antwort) {
       return res.status(400).json({ success: false, error: "Frage oder Antwort fehlt" })
     }
-
     const data = loadFaqData()
     data.push({ frage, antwort })
     fs.writeFileSync(FAQ_FILE, JSON.stringify(data, null, 2), 'utf8')
@@ -179,39 +189,32 @@ app.delete('/api/cache', (req, res) => {
 
 // === Catalog API ===
 app.get('/api/catalog', (req, res) => {
-  const data = loadCatalogData()
-  res.json(data)
+  res.json(loadCatalogData())
 })
 
-// Katalog direkt abrufen
+// Katalog-Datei direkt
 app.get('/catalog.json', (req, res) => {
   res.sendFile(path.resolve(CATALOG_FILE))
 })
 
-// Katalog mit Datum im Namen herunterladen
+// Katalog-Download mit Datum
 app.get('/download/catalog', (req, res) => {
   const file = path.resolve(CATALOG_FILE)
-  const date = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  const date = new Date().toISOString().split('T')[0]
   res.download(file, `catalog-${date}.json`)
 })
 
-// === Frontend & Admin ===
-app.use(express.static(path.join(__dirname, 'frontend')))
+// === Admin-Frontend (bleibt)
 app.use(express.static(path.join(__dirname, 'public')))
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
-})
-
 app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'))
 })
 
-// Catch-All → Chatbot
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'))
+// 404 für alles andere (API-only)
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' })
 })
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log('✅ Chatbot + Admin + Catalog läuft auf Port 3000')
+  console.log('✅ API läuft auf Port', process.env.PORT || 3000)
 })
