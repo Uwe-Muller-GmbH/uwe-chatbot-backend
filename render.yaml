@@ -1,0 +1,33 @@
+# render.yaml  – Blueprint für Uwe-Chatbot-Backend
+services:
+  - type: web
+    name: uwe-chatbot-backend
+    env: node                # Node-Umgebung
+    plan: starter            # <— wähle deinen bezahlten Instance-Typ (z. B. starter/standard/pro)
+    region: frankfurt        # optional: eu-central Region, falls verfügbar
+    autoDeploy: true
+
+    # Health-Check
+    healthCheckPath: /health
+    healthCheckTimeout: 100  # optional
+
+    buildCommand: "npm ci"
+    startCommand: "node server.js"
+
+    # Persistente Daten (FAQ/Katalog) – Disk nach /data mounten
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION       # optional; zusätzlich zu package.json "engines"
+        value: 20
+      - key: DATA_DIR
+        value: /data
+      - key: OPENAI_API_KEY
+        fromSecret: OPENAI_API_KEY
+      - key: ADMIN_TOKEN
+        fromSecret: ADMIN_TOKEN
